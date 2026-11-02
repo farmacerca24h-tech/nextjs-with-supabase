@@ -1,66 +1,56 @@
 "use client";
-import { useState } from "react";
+import { useState, useEffect } from "react";
+import { createClient } from "@/lib/supabase/client";
 
-const FARMACIAS = [
-  // URRACAL / COMARCA
-  { nombre: "Farmacia Urrácal", pueblo: "Urrácal", direccion: "Av. Constitución 5", guardia: true, horario: "Abierta hasta 22:00" },
-  { nombre: "Farmacia Liria", pueblo: "Purchena", direccion: "C/ Mayor 12", guardia: false, horario: "Abre mañana 9:00" },
-  
-  // VELEZ MALAGA - AHORA 8
-  { nombre: "Farmacia Central Vélez", pueblo: "Vélez Málaga", direccion: "C/ Canalejas 10", guardia: true, horario: "Abierta hasta 23:00" },
-  { nombre: "Farmacia Torre del Mar", pueblo: "Vélez Málaga", direccion: "Av. Andalucía 34", guardia: false, horario: "Abre mañana 9:00" },
-  { nombre: "Farmacia El Carmen", pueblo: "Vélez Málaga", direccion: "C/ Cristo 15", guardia: true, horario: "Abierta hasta 22:00" },
-  { nombre: "Farmacia Triana", pueblo: "Vélez Málaga", direccion: "C/ San Francisco 8", guardia: false, horario: "Abre mañana 9:30" },
-  { nombre: "Farmacia Capuchinos", pueblo: "Vélez Málaga", direccion: "Av. Vivar Téllez 45", guardia: false, horario: "Abre mañana 9:00" },
-  { nombre: "Farmacia Real Bajo", pueblo: "Vélez Málaga", direccion: "C/ Reñidero 2", guardia: false, horario: "Abre mañana 9:00" },
-];
-
-function quitarAcentos(str: string) {
-  return str.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
-}
+const PUEBLOS_MALAGA = ["Todos", "Vélez-Málaga", "Torre del Mar", "Algarrobo", "Torrox", "Nerja", "Rincón de la Victoria", "Benajarafe", "Almayate", "Frigiliana", "Málaga Centro", "Urrácal"];
 
 export default function Home() {
-  const [q, setQ] = useState("velez malaga");
-  const [resultados, setResultados] = useState(FARMACIAS.filter(f => quitarAcentos(f.pueblo).includes("velez")));
+  const [farmacias, setFarmacias] = useState<any[]>([]);
+  const [puebloSel, setPuebloSel] = useState("Vélez-Málaga");
+  const supabase = createClient();
 
-  const buscar = () => {
-    const query = quitarAcentos(q);
-    if (!query) { setResultados(FARMACIAS.slice(0,6)); return; }
-    const f = FARMACIAS.filter(f => 
-      quitarAcentos(f.pueblo).includes(query) || 
-      quitarAcentos(f.nombre).includes(query)
-    );
-    setResultados(f);
-  };
+  useEffect(() => {
+    const cargar = async () => {
+      const { data } = await supabase.from("farmacias").select("*");
+      if (data && data.length > 0) {
+        setFarmacias(data);
+      } else {
+        // Si aún no hiciste el SQL, muestra las de ejemplo
+        setFarmacias([
+          { nombre: "Farmacia Cruz Verde 6", pueblo: "Vélez-Málaga", direccion: "C/ Cruz Verde, 6", guardia: true, horario: "HOY DE GUARDIA - 952 500 196" },
+          { nombre: "Farmacia Avda. Andalucía 119", pueblo: "Torre del Mar", direccion: "Avda. Andalucía, 119", guardia: true, horario: "HOY DE GUARDIA - 952 540 822" },
+        ]);
+      }
+    };
+    cargar();
+  }, []);
+
+  const filtradas = farmacias.filter(f => puebloSel === "Todos" || f.pueblo === puebloSel || f.pueblo?.toLowerCase().includes(puebloSel.toLowerCase()));
 
   return (
     <main className="min-h-screen bg-[#f8fffe]">
-      <header className="max-w-6xl mx-auto p-6 flex justify-between">
-        <div className="flex items-center gap-2 font-black text-xl">
-          <div className="bg-emerald-500 text-white w-8 h-8 rounded-lg flex items-center justify-center">+</div>
-          Farmacerca24h
-        </div>
-        <div className="text-sm text-emerald-600 font-bold">Ahora en Vélez Málaga</div>
+      <header className="max-w-6xl mx-auto p-6 flex justify-between items-center">
+        <div className="flex items-center gap-2 font-black text-xl"><div className="bg-emerald-500 text-white w-8 h-8 rounded-lg flex items-center justify-center">+</div>Farmacerca24h</div>
+        <div className="text-sm bg-emerald-500 text-white px-4 py-1.5 rounded-full font-bold">● EN DIRECTO</div>
       </header>
-
-      <div className="max-w-6xl mx-auto px-6 py-8 text-center">
-        <h1 className="text-4xl md:text-6xl font-black">Encuentra tu farmacia<br/><span className="text-emerald-500">de guardia en 5 segundos</span></h1>
-        
-        <div className="mt-8 max-w-2xl mx-auto flex gap-2 p-2 bg-white rounded-[20px] shadow-2xl border">
-          <input value={q} onChange={(e) => setQ(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && buscar()} className="flex-1 px-6 py-4 outline-none rounded-xl text-lg" placeholder="Ej: velez malaga" />
-          <button onClick={buscar} className="bg-emerald-500 text-white px-8 rounded-xl font-bold">Buscar</button>
+      <div className="max-w-6xl mx-auto px-6 py-8">
+        <div className="text-center">
+          <h1 className="text-4xl md:text-5xl font-black">Farmacias de guardia<br/><span className="text-emerald-500">en Málaga HOY</span></h1>
+          <p className="text-gray-400 mt-3">Selecciona tu pueblo y te decimos cuál está abierta ahora</p>
         </div>
-
-        <div className="mt-4 text-sm text-gray-400">{resultados.length} farmacias encontradas en "{q}"</div>
-
-        <div className="mt-8 grid md:grid-cols-3 gap-4 text-left">
-          {resultados.map((f) => (
-            <div key={f.nombre} className={`bg-white p-6 rounded-2xl border-2 ${f.guardia ? 'border-emerald-500' : 'border-gray-100'}`}>
+        <div className="mt-8 max-w-xl mx-auto bg-white rounded-[24px] shadow-2xl border p-3">
+          <select value={puebloSel} onChange={(e) => setPuebloSel(e.target.value)} className="w-full px-5 py-4 rounded-xl bg-gray-50 font-bold text-lg outline-none">
+            {PUEBLOS_MALAGA.map(p => <option key={p} value={p}>{p}</option>)}
+          </select>
+        </div>
+        <div className="mt-6 grid md:grid-cols-2 gap-4">
+          {filtradas.map((f) => (
+            <div key={f.nombre} className={`bg-white p-6 rounded-2xl border-2 ${f.guardia ? 'border-emerald-500 shadow-lg' : 'border-gray-100'}`}>
               <span className={`text-xs font-bold px-3 py-1 rounded-full ${f.guardia ? 'bg-emerald-500 text-white' : 'bg-gray-100'}`}>{f.guardia ? 'DE GUARDIA HOY' : f.pueblo.toUpperCase()}</span>
               <h3 className="font-bold text-lg mt-3">{f.nombre}</h3>
               <p className="text-sm text-gray-500">{f.direccion}</p>
-              <p className="text-sm font-bold mt-2 text-emerald-600">{f.horario}</p>
-              <a target="_blank" href={`https://www.google.com/maps/search/${f.nombre} ${f.pueblo}`} className="mt-4 inline-block text-sm font-bold text-emerald-600 underline">Ver en mapa →</a>
+              <p className="text-sm font-bold mt-1 text-emerald-600">{f.horario}</p>
+              <a target="_blank" href={`https://www.google.com/maps/search/${f.nombre} ${f.pueblo}`} className="mt-4 block text-center bg-black text-white py-3 rounded-xl font-bold">Ver en mapa →</a>
             </div>
           ))}
         </div>
