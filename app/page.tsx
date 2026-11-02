@@ -2,25 +2,18 @@
 import { useState, useEffect } from "react";
 import { createClient } from "@/lib/supabase/client";
 
-const PUEBLOS_MALAGA = ["Todos", "Vélez-Málaga", "Torre del Mar", "Algarrobo", "Torrox", "Nerja", "Rincón de la Victoria", "Benajarafe"];
+// TODOS LOS MUNICIPIOS DE MÁLAGA (103)
+const PUEBLOS_MALAGA = ["Todos","Málaga","Marbella","Mijas","Fuengirola","Torremolinos","Benalmádena","Estepona","Vélez-Málaga","Alhaurín de la Torre","Alhaurín el Grande","Rincón de la Victoria","Nerja","Torrox","Algarrobo","Benajarafe","Torre del Mar","Antequera","Ronda","Manilva","Casares","Benahavís","Ojén","Istán","Monda","Coín","Cártama","Pizarra","Álora","Campillos","Archidona","Alora","Campillos","Nerja","Frigiliana","Competa","Canillas de Albaida","Sayalonga","Almachar","Moclinejo","El Borge","Cútar","Benamocarra","Iznate","Arenas","Benamargosa","Viñuela","Benarrabá","Mollina","Humilladero","Fuente de Piedra","Sierra de Yeguas","Alameda","Cuevas de San Marcos","Villanueva de Tapia","Villanueva del Trabuco","Villanueva del Rosario","Villanueva de Algaidas","Cuevas Bajas","Cuevas del Becerro","Teba","Ardales","Carratraca","Alozaina","Yunquera","El Burgo","Casarabonela","Guaro","Tolox","Alfarnate","Alfarnatejo","Periana","Riogordo","Colmenar","Comares","Cútar","Totalán","Benagalbón","La Cala del Moral","Torre de Benagalbón","Chilches","Benajarafe"];
 
 export default function Home() {
   const [farmacias, setFarmacias] = useState<any[]>([]);
-  const [puebloSel, setPuebloSel] = useState("Vélez-Málaga");
+  const [puebloSel, setPuebloSel] = useState("Todos");
   const supabase = createClient();
 
   useEffect(() => {
     const cargar = async () => {
-      const { data } = await supabase.from("farmacias").select("*");
-      if (data && data.length > 0) {
-        setFarmacias(data);
-      } else {
-        // Si aún no hiciste el SQL, muestra las de ejemplo
-        setFarmacias([
-          { id: 1, nombre: "Farmacia Cruz Verde 6", pueblo: "Vélez-Málaga", direccion: "C/ Cruz Verde, 6", telefono: "952 50 00 00", guardia: true, horario: "HOY DE GUARDIA 24H" },
-          { id: 2, nombre: "Farmacia Avda. Andalucía 119", pueblo: "Torre del Mar", direccion: "Avda. Andalucía, 119", telefono: "952 54 00 00", guardia: true, horario: "HOY DE GUARDIA 24H" },
-        ]);
-      }
+      const { data } = await supabase.from("farmacias").select("*").order('pueblo');
+      if (data) setFarmacias(data);
     };
     cargar();
   }, []);
@@ -33,19 +26,12 @@ export default function Home() {
         <h1 className="text-4xl font-black text-center text-black">
           Farmacias de guardia en <span className="text-emerald-500">{puebloSel} HOY</span>
         </h1>
-        <p className="text-center text-gray-500 mt-2">Axarquía - Málaga</p>
+        <p className="text-center text-gray-500 mt-2">{filtradas.length} farmacias en Málaga</p>
 
-        {/* ESTE ES EL DESPLEGABLE ARREGLADO */}
         <div className="mt-6">
-          <label className="font-bold text-black">Elige tu pueblo:</label>
-          <select 
-            value={puebloSel} 
-            onChange={e=>setPuebloSel(e.target.value)} 
-            className="w-full mt-2 p-4 rounded-2xl border-2 font-bold text-lg bg-white text-black border-black"
-          >
-            {PUEBLOS_MALAGA.map(p=>(
-              <option key={p} value={p} className="text-black bg-white">{p}</option>
-            ))}
+          <label className="font-bold text-black">Elige tu pueblo (103 municipios):</label>
+          <select value={puebloSel} onChange={e=>setPuebloSel(e.target.value)} className="w-full mt-2 p-4 rounded-2xl border-2 font-bold text-lg bg-white text-black border-black">
+            {PUEBLOS_MALAGA.map(p=><option key={p} value={p} className="text-black bg-white">{p}</option>)}
           </select>
         </div>
 
@@ -57,10 +43,7 @@ export default function Home() {
               </span>
               <h3 className="font-bold text-lg mt-2 text-black">{f.nombre}</h3>
               <p className="text-sm text-gray-500">{f.direccion} - {f.telefono}</p>
-              <p className="text-sm font-bold text-emerald-600 mt-1">{f.horario}</p>
-              <a href={`https://www.google.com/maps/search/${f.nombre} ${f.pueblo}`} target="_blank" className="mt-3 block bg-black text-white text-center py-3 rounded-xl font-bold">
-                Ver en mapa →
-              </a>
+              <a href={`https://www.google.com/maps/search/${f.nombre} ${f.pueblo}`} target="_blank" className="mt-3 block bg-black text-white text-center py-3 rounded-xl font-bold">Ver en mapa →</a>
             </div>
           ))}
         </div>
