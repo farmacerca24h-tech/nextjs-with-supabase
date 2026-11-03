@@ -1,8 +1,7 @@
 import { type NextRequest, NextResponse } from 'next/server'
-import { updateSession } from '@/lib/supabase/middleware'
+import { updateSession } from '@/lib/supabase/proxy'
 
-export default async function proxy(request: NextRequest) {
-  // Dejar pasar al robot sin login
+export async function proxy(request: NextRequest) {
   if (request.nextUrl.pathname.startsWith('/api/cron')) {
     return NextResponse.next()
   }
