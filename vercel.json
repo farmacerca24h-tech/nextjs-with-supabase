@@ -1,8 +1,0 @@
-{
-  "crons": [
-    {
-      "path": "/api/cron/guardias",
-      "schedule": "35 7 * * *"
-    }
-  ]
-}
