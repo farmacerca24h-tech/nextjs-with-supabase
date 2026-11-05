@@ -1,142 +1,78 @@
-"use client";
-
-import { useEffect, useState } from "react";
-import { createClient } from "@supabase/supabase-js";
+'use client'
+import { useState } from 'react'
+import { createClient } from '@supabase/supabase-js'
 
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
   process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
-);
+)
 
-// TODOS LOS PUEBLOS DE MÁLAGA + PEDANÍAS
-const PUEBLOS = [
-  "Alameda", "Alcaucín", "Alfarnate", "Alfarnatejo", "Algarrobo", "Algatocín",
-  "Alhaurín de la Torre", "Alhaurín el Grande", "Almáchar", "Almargen", "Almogía",
-  "Álora", "Alozaina", "Alpandeire", "Antequera", "Árchez", "Archidona", "Ardales",
-  "Arenas", "Arriate", "Atajate", "Benadalid", "Benahavís", "Benalauría",
-  "Benalmádena", "Benamargosa", "Benamocarra", "Benaoján", "Benarrabá", "El Borge",
-  "El Burgo", "Campillos", "Canillas de Aceituno", "Canillas de Albaida", "Cañete la Real",
-  "Carratraca", "Cartajima", "Cártama", "Casabermeja", "Casarabonela", "Casares",
-  "Coín", "Colmenar", "Comares", "Cómpeta", "Cortes de la Frontera", "Cuevas Bajas",
-  "Cuevas del Becerro", "Cuevas de San Marcos", "Cútar", "Estepona", "Faraján",
-  "Frigiliana", "Fuengirola", "Fuente de Piedra", "Gaucín", "Genalguacil",
-  "Guaro", "Humilladero", "Igualeja", "Istán", "Iznate", "Jimera de Líbar",
-  "Jubrique", "Júzcar", "Macharaviaya", "Málaga", "Manilva", "Marbella", "Mijas",
-  "Moclinejo", "Mollina", "Monda", "Montejaque", "Nerja", "Ojén", "Parauta",
-  "Periana", "Pizarra", "Pujerra", "Rincón de la Victoria", "Riogordo", "Ronda",
-  "Salares", "Sayalonga", "Sedella", "Sierra de Yeguas", "Teba", "Tolox",
-  "Torremolinos", "Torrox", "Totalán", "Valle de Abdalajís", "Vélez-Málaga",
-  "Villanueva de Algaidas", "Villanueva del Rosario", "Villanueva del Trabuco",
-  "Villanueva de Tapia", "Viñuela", "Yunquera",
-  // PEDANÍAS Y BARRIADAS
-  "Torre del Mar", "Caleta de Vélez", "Almayate", "Chilches", "Benajarafe",
-  "Torre de Benagalbón", "La Cala del Moral", "La Cala de Mijas", "Las Lagunas",
-  "San Pedro de Alcántara", "Nueva Andalucía", "Puerto Banús", "El Palo",
-  "Pedregalejo", "Churriana", "Campanillas", "Puerto de la Torre", "Teatinos",
-  "Arroyo de la Miel", "Benalmádena Costa", "Benalmádena Pueblo", "Torremuelle",
-  "Torreblanca", "Los Boliches", "Carvajal", "El Chaparral", "La Carihuela",
-  "Montemar", "Los Álamos", "Playamar", "La Colina", "El Sexmo", "Cala de Mijas",
-  "Riviera del Sol", "Calanova", "La Butibamba", "Cancelada", "Elviria",
-  "Cabopino", "La Alquería", "Santa Rosalía", "Maqueda", "Chaparral"
-];
+const PUEBLOS = ["Alameda","Alfarnate","Alfarnatejo","Algarrobo","Algatocín","Alhaurín de la Torre","Alhaurín el Grande","Almáchar","Almargen","Almogía","Álora","Alozaina","Alpandeire","Antequera","Árchez","Archidona","Ardales","Arenas","Arriate","Atajate","Benadalid","Benahavís","Benalauría","Benalmádena","Benamargosa","Benamocarra","Benaoján","Benarrabá","Borge, El","Burgo, El","Campillos","Canillas de Aceituno","Canillas de Albaida","Cañete la Real","Carratraca","Cartajima","Cártama","Casabermeja","Casarabonela","Casares","Coín","Colmenar","Comares","Cómpeta","Cortes de la Frontera","Cuevas Bajas","Cuevas de San Marcos","Cuevas del Becerro","Cútar","Estepona","Faraján","Frigiliana","Fuengirola","Fuente de Piedra","Gaucín","Genalguacil","Guaro","Humilladero","Igualeja","Istán","Iznate","Jimera de Líbar","Jubrique","Júzcar","Macharaviaya","Málaga","Manilva","Marbella","Mijas","Moclinejo","Mollina","Monda","Montejaque","Nerja","Ojén","Parauta","Periana","Pizarra","Pujerra","Rincón de la Victoria","Riogordo","Ronda","Salares","Sayalonga","Sedella","Sierra de Yeguas","Teba","Tolox","Torremolinos","Torrox","Totalán","Valle de Abdalajís","Vélez-Málaga","Villanueva de Algaidas","Villanueva de la Concepción","Villanueva de Tapia","Villanueva del Rosario","Villanueva del Trabuco","Viñuela","Yunquera"].sort((a,b)=>a.localeCompare(b,'es'))
 
-type Farmacia = {
-  id: number;
-  nombre: string;
-  direccion: string;
-  pueblo: string;
-  telefono: string | null;
-  guardia_24h: boolean;
-  latitud: number | null;
-  longitud: number | null;
-};
+const PEDANIAS: Record<string,string[]> = {
+  "Vélez-Málaga": ["Vélez-Málaga","Torre del Mar","Caleta de Vélez","Almayate","Benajarafe","Chilches","Cajiz","Triana","Lagos","Mezquitilla","Trapiche"],
+  "Málaga": ["Málaga Centro","Teatinos","El Palo","Pedregalejo","Churriana","Campanillas"],
+  "Ronda": ["Ronda","La Cimada"],
+  "Antequera": ["Antequera","Bobadilla","Cartaojal"],
+  "Marbella": ["Marbella","San Pedro de Alcántara","Nueva Andalucía"],
+  "Estepona": ["Estepona","Cancelada"],
+  "Nerja": ["Nerja","Maro","Burriana"],
+  "Torrox": ["Torrox","El Morche"],
+  "Algarrobo": ["Algarrobo","Algarrobo-Costa"],
+  "Rincón de la Victoria": ["Rincón de la Victoria","La Cala del Moral","Torre de Benagalbón","Benagalbón"],
+}
 
-export default function Home() {
-  const [pueblo, setPueblo] = useState("");
-  const [farmacias, setFarmacias] = useState<Farmacia[]>([]);
-  const [buscando, setBuscando] = useState(false);
-  const [buscado, setBuscado] = useState(false);
+export default function Home(){
+  const [pueblo,setPueblo]=useState('')
+  const [pedania,setPedania]=useState('')
+  const [resultado,setResultado]=useState<any[]>([])
+  const [buscado,setBuscado]=useState(false)
+  const [cargando,setCargando]=useState(false)
 
-  async function buscar() {
-    if (!pueblo) {
-      alert("Elige un pueblo primero");
-      return;
-    }
-    setBuscando(true);
-    setBuscado(true);
-
-    const { data, error } = await supabase
-      .from("farmacias")
-      .select("*")
-      .ilike("pueblo", `%${pueblo}%`)
-      .eq("guardia_24h", true);
-
-    if (error) {
-      console.log(error);
-      setFarmacias([]);
-    } else {
-      setFarmacias(data || []);
-    }
-    setBuscando(false);
+  async function buscar(){
+    if(!pueblo) return
+    setCargando(true); setBuscado(true)
+    const hoy = new Date().toLocaleDateString('en-CA',{timeZone:'Europe/Madrid'})
+    let q = supabase.from('farmacias').select('*').eq('pueblo',pueblo).eq('fecha_guardia',hoy)
+    if(pedania) q = q.eq('pedania',pedania)
+    const {data}= await q
+    setResultado(data||[])
+    setCargando(false)
   }
 
-  // Cuando cambia el pueblo, buscar automáticamente
-  useEffect(() => {
-    if (pueblo) {
-      buscar();
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [pueblo]);
-
   return (
-    <main style={{ maxWidth: 600, margin: "0 auto", padding: 20, fontFamily: "Arial, sans-serif" }}>
-      <h1 style={{ textAlign: "center", color: "#0a7a42" }}>💊 Farmacerca 24h</h1>
-      <p style={{ textAlign: "center" }}>Farmacias de guardia 24h en Málaga</p>
-
-      <label style={{ fontWeight: "bold" }}>Elige tu pueblo:</label>
-      <select
-        value={pueblo}
-        onChange={(e) => setPueblo(e.target.value)}
-        style={{ width: "100%", padding: 12, fontSize: 16, marginTop: 8, borderRadius: 8, border: "1px solid #ccc" }}
-      >
-        <option value="">-- Elige un pueblo --</option>
-        {PUEBLOS.map((p) => (
-          <option key={p} value={p}>{p}</option>
-        ))}
+    <main style={{maxWidth:600,margin:'0 auto',padding:20,fontFamily:'sans-serif'}}>
+      <h1 style={{fontSize:28,fontWeight:800}}>💊 Farmacia de Guardia<br/>Málaga</h1>
+      <p>103 pueblos de Málaga, de la A a la Z. Con pedanías.</p>
+      <label>Pueblo</label>
+      <select value={pueblo} onChange={e=>{setPueblo(e.target.value); setPedania(''); setBuscado(false)}} style={{width:'100%',padding:14,fontSize:16,marginBottom:12}}>
+        <option value="">-- Elige tu pueblo --</option>
+        {PUEBLOS.map(p=><option key={p} value={p}>{p}</option>)}
       </select>
-
-      <button
-        onClick={buscar}
-        style={{ width: "100%", padding: 14, marginTop: 12, background: "#0a7a42", color: "white", border: "none", borderRadius: 8, fontSize: 17, fontWeight: "bold", cursor: "pointer" }}
-      >
-        {buscando ? "Buscando..." : "🔍 Buscar farmacia 24h"}
+      {pueblo && PEDANIAS[pueblo] && <>
+        <label>Pedanía / Zona (opcional)</label>
+        <select value={pedania} onChange={e=>setPedania(e.target.value)} style={{width:'100%',padding:14,fontSize:16,marginBottom:12}}>
+          <option value="">-- Todo {pueblo} --</option>
+          {PEDANIAS[pueblo].map(p=><option key={p} value={p}>{p}</option>)}
+        </select>
+      </>}
+      <button onClick={buscar} style={{width:'100%',padding:16,background:'#16a34a',color:'white',border:0,borderRadius:10,fontSize:18,fontWeight:700}}>
+        {cargando?'Buscando...':'🔍 Buscar farmacia de guardia'}
       </button>
-
-      {buscado && !buscando && (
-        <div style={{ marginTop: 20 }}>
-          {farmacias.length === 0 ? (
-            <p style={{ textAlign: "center", background: "#fff3cd", padding: 15, borderRadius: 8 }}>
-              No hay farmacia 24h registrada en {pueblo} todavía.
-            </p>
-          ) : (
-            farmacias.map((f) => (
-              <div key={f.id} style={{ border: "1px solid #ddd", borderRadius: 10, padding: 15, marginBottom: 12 }}>
-                <h3 style={{ margin: 0 }}>{f.nombre}</h3>
-                <p style={{ margin: "6px 0" }}>📍 {f.direccion} - {f.pueblo}</p>
-                {f.telefono && <p style={{ margin: "6px 0" }}>📞 <a href={`tel:${f.telefono}`}>{f.telefono}</a></p>}
-                <span style={{ background: "#0a7a42", color: "white", padding: "4px 10px", borderRadius: 20, fontSize: 13 }}>ABIERTA 24H</span>
-                {f.latitud && f.longitud && (
-                  <div style={{ marginTop: 10 }}>
-                    <a href={`https://www.google.com/maps?q=${f.latitud},${f.longitud}`} target="_blank" rel="noreferrer" style={{ color: "#0a7a42", fontWeight: "bold" }}>
-                      📍 Cómo llegar en Google Maps
-                    </a>
-                  </div>
-                )}
-              </div>
-            ))
-          )}
+      {buscado && (
+        <div style={{marginTop:20}}>
+          {resultado.length===0 ? <p style={{background:'#fef3c7',padding:16,borderRadius:10}}>No hay farmacia 24h registrada en {pedania||pueblo} todavía.</p> :
+          resultado.map((f:any)=>(
+            <div key={f.id} style={{border:'1px solid #ddd',padding:16,borderRadius:12,marginBottom:12}}>
+              <b style={{fontSize:18}}>{f.nombre}</b><br/>
+              📍 {f.direccion}<br/>
+              📞 <a href={`tel:${f.telefono}`}>{f.telefono}</a><br/>
+              <small>{f.pueblo} - {f.pedania} - Guardia {f.fecha_guardia}</small><br/>
+              <a href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(f.direccion)}`} target="_blank" style={{display:'inline-block',marginTop:10,background:'#2563eb',color:'white',padding:'10px 16px',borderRadius:8,textDecoration:'none'}}>Cómo llegar →</a>
+            </div>
+          ))}
         </div>
       )}
     </main>
-  );
+  )
 }
