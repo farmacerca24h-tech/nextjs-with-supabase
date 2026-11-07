@@ -12,7 +12,8 @@ type Farmacia = {
   id: number;
   nombre: string;
   direccion: string;
-  localidad: string;
+  pueblo: string;
+  pedania: string;
   telefono: string;
   guardia: boolean;
   horario: string;
@@ -23,6 +24,7 @@ type Farmacia = {
 export default function Home() {
   const [farmacias, setFarmacias] = useState<Farmacia[]>([]);
   const [busqueda, setBusqueda] = useState("");
+  const [producto, setProducto] = useState("");
   const [soloGuardia, setSoloGuardia] = useState(false);
   const [cargando, setCargando] = useState(true);
 
@@ -33,7 +35,6 @@ export default function Home() {
         .select("*")
         .order("nombre");
       if (data) {
-        // Quitar duplicadas por nombre + dirección
         const unicas = (data as Farmacia[]).filter(
           (f, i, arr) =>
             i ===
@@ -49,18 +50,24 @@ export default function Home() {
   }, []);
 
   const filtradas = farmacias.filter((f) => {
-    const texto = (f.nombre + " " + f.direccion + " " + f.localidad)
+    const texto = (f.nombre + " " + f.direccion + " " + (f.pueblo || "") + " " + (f.pedania || ""))
       .toLowerCase()
       .includes(busqueda.toLowerCase());
     const guardiaOk = soloGuardia ? f.guardia : true;
     return texto && guardiaOk;
   });
 
+  const linkWhatsApp = (f: Farmacia) => {
+    let tel = f.telefono.replace(/[^0-9]/g, "");
+    if (tel.length === 9) tel = "34" + tel;
+    const prod = producto.trim() || "un producto";
+    const mensaje = `Hola ${f.nombre}, soy de FarmaCerca 24h. ¿Tenéis stock de ${prod}? Gracias`;
+    return `https://wa.me/${tel}?text=${encodeURIComponent(mensaje)}`;
+  };
+
   return (
     <main className="min-h-screen bg-[#f4f8f5] pb-10">
-      {/* CABECERA */}
       <header className="bg-white shadow-sm sticky top-0 z-20">
-        {/* LOGO OFICIAL FARMACERCA */}
         <div className="flex justify-center py-3">
           <img
             src="/logo.png.jpeg"
@@ -69,15 +76,31 @@ export default function Home() {
           />
         </div>
 
-        {/* BUSCADOR */}
-        <div className="px-4 pb-4 max-w-3xl mx-auto">
+        <div className="px-4 pb-4 max-w-3xl mx-auto space-y-3">
           <input
             value={busqueda}
             onChange={(e) => setBusqueda(e.target.value)}
-            placeholder="🔍 Busca por farmacia, calle o pueblo... Ej: Iznájar, Rute, Lucena"
+            placeholder="🔍 Busca por farmacia, calle o pueblo... Ej: Iznájar"
             className="w-full p-4 rounded-2xl border-2 border-[#1a9a3d] text-lg outline-none bg-white shadow-sm"
           />
-          <div className="flex gap-2 mt-3">
+
+          <div className="bg-[#e8f5ee] border-2 border-[#1a9a3d] rounded-2xl p-3">
+            <p className="font-black text-[#0b6b3a] text-sm mb-2">
+              💊 ¿Qué medicamento buscas?
+            </p>
+            <input
+              value={producto}
+              onChange={(e) => setProducto(e.target.value)}
+              placeholder="Ej: Paracetamol, Ibuprofeno, Omeprazol..."
+              className="w-full p-3 rounded-xl border border-[#1a9a3d] outline-none bg-white"
+            />
+            <p className="text-xs text-gray-600 mt-2">
+              Escribe el producto y luego pulsa en la farmacia
+              &quot;Preguntar stock por WhatsApp&quot;
+            </p>
+          </div>
+
+          <div className="flex gap-2">
             <button
               onClick={() => setSoloGuardia(!soloGuardia)}
               className={`flex-1 py-3 rounded-xl font-bold text-sm ${
@@ -91,6 +114,7 @@ export default function Home() {
             <button
               onClick={() => {
                 setBusqueda("");
+                setProducto("");
                 setSoloGuardia(false);
               }}
               className="flex-1 py-3 rounded-xl font-bold text-sm bg-gray-100 text-gray-700"
@@ -101,7 +125,6 @@ export default function Home() {
         </div>
       </header>
 
-      {/* RESULTADOS */}
       <div className="px-4 max-w-3xl mx-auto mt-4">
         <p className="text-sm font-bold text-gray-600 mb-3">
           {cargando
@@ -136,7 +159,8 @@ export default function Home() {
                   )}
                 </div>
                 <p className="text-gray-600 text-sm mt-1">
-                  📍 {f.direccion} - {f.localidad}
+                  📍 {f.direccion} - {f.pueblo}
+                  {f.pedania ? ` (${f.pedania})` : ""}
                 </p>
                 {f.horario && (
                   <p className="text-gray-600 text-sm">🕐 {f.horario}</p>
@@ -151,7 +175,7 @@ export default function Home() {
                   </a>
                   <a
                     href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(
-                      f.nombre + " " + f.direccion + " " + f.localidad
+                      f.nombre + " " + f.direccion + " " + f.pueblo
                     )}`}
                     target="_blank"
                     className="flex-1 text-center bg-[#e8f5ee] text-[#0b6b3a] py-3 rounded-xl font-bold border border-[#1a9a3d]"
@@ -159,12 +183,24 @@ export default function Home() {
                     🗺️ Cómo llegar
                   </a>
                 </div>
+
+                <a
+                  href={linkWhatsApp(f)}
+                  target="_blank"
+                  className="block text-center mt-2 bg-[#25D366] text-white py-3.5 rounded-xl font-black text-[15px] shadow-sm"
+                >
+                  💬 Preguntar stock por WhatsApp
+                  {producto.trim() && (
+                    <span className="block text-[12px] font-bold opacity-90">
+                      &quot;{producto.trim()}&quot;
+                    </span>
+                  )}
+                </a>
               </div>
             ))}
           </div>
         )}
 
-        {/* PIE OFICIAL */}
         <div className="mt-8 text-center border-t-2 border-[#1a9a3d] pt-4 pb-2">
           <p className="text-2xl font-black text-[#0b6b3a]">
             A un mensaje de ti
