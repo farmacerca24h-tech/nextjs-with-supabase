@@ -32,7 +32,17 @@ export default function Home() {
         .from("farmacias")
         .select("*")
         .order("nombre");
-      if (data) setFarmacias(data as Farmacia[]);
+      if (data) {
+        // Quitar duplicadas por nombre + dirección
+        const unicas = (data as Farmacia[]).filter(
+          (f, i, arr) =>
+            i ===
+            arr.findIndex(
+              (x) => x.nombre === f.nombre && x.direccion === f.direccion
+            )
+        );
+        setFarmacias(unicas);
+      }
       setCargando(false);
     }
     cargar();
@@ -128,7 +138,9 @@ export default function Home() {
                 <p className="text-gray-600 text-sm mt-1">
                   📍 {f.direccion} - {f.localidad}
                 </p>
-                <p className="text-gray-600 text-sm">🕐 {f.horario}</p>
+                {f.horario && (
+                  <p className="text-gray-600 text-sm">🕐 {f.horario}</p>
+                )}
 
                 <div className="flex gap-2 mt-3">
                   <a
