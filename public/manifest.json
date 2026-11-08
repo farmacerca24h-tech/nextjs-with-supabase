@@ -1,23 +1,12 @@
 {
   "name": "FarmaCerca 24h",
   "short_name": "FarmaCerca",
-  "description": "Preguntamos por ti a 3 farmacias a la vez",
   "start_url": "/",
   "display": "standalone",
   "background_color": "#ffffff",
-  "theme_color": "#16a34a",
+  "theme_color": "#00915a",
   "icons": [
-    {
-      "src": "/icon-192.png",
-      "sizes": "192x192",
-      "type": "image/jpeg",
-      "purpose": "any"
-    },
-    {
-      "src": "/icon-512.png",
-      "sizes": "512x512",
-      "type": "image/jpeg",
-      "purpose": "any"
-    }
+    { "src": "/logo.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
+    { "src": "/logo.png", "sizes": "512x512", "type": "image/png", "purpose": "any" }
   ]
 }
