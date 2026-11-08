@@ -1,25 +1,46 @@
-import './globals.css'
+import type { Metadata, Viewport } from "next";
+import "./globals.css";
 
-export const metadata = {
-  title: 'FarmaCerca 24h',
-  description: 'Preguntamos por ti a 3 farmacias a la vez',
-  manifest: '/manifest.json',
-  themeColor: '#16a34a',
-}
+export const metadata: Metadata = {
+  title: "FarmaCerca 24h",
+  description: "Preguntamos por ti a 3 farmacias a la vez",
+  manifest: "/manifest.json",
+  appleWebApp: {
+    capable: true,
+    statusBarStyle: "default",
+    title: "FarmaCerca",
+  },
+};
+
+export const viewport: Viewport = {
+  themeColor: "#16a34a",
+};
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <html lang="es">
       <head>
-        <link rel="manifest" href="/manifest.json" />
+        <link rel="icon" href="/icon-192.png" />
         <link rel="apple-touch-icon" href="/icon-192.png" />
-        <meta name="theme-color" content="#16a34a" />
-        <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1" />
       </head>
-      <body style={{ margin: 0, padding: 0 }}>
+      <body>
         {children}
-        <script dangerouslySetInnerHTML={{ __html: `if('serviceWorker' in navigator){window.addEventListener('load',()=>{navigator.serviceWorker.register('/sw.js')})}` }} />
+        <script
+          dangerouslySetInnerHTML={{
+            __html: `
+              if ('serviceWorker' in navigator) {
+                window.addEventListener('load', function() {
+                  navigator.serviceWorker.register('/sw.js').then(function(reg){
+                    console.log('SW OK', reg.scope);
+                  }).catch(function(err){
+                    console.log('SW FAIL', err);
+                  });
+                });
+              }
+            `,
+          }}
+        />
       </body>
     </html>
-  )
+  );
 }
