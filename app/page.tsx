@@ -1,11 +1,11 @@
 "use client";
-
 import { useEffect, useState } from "react";
 
-export default function Home() {
+export default function Page() {
   const [deferredPrompt, setDeferredPrompt] = useState<any>(null);
   const [pueblo, setPueblo] = useState("Iznájar");
-  const [mensaje, setMensaje] = useState("");
+  const [necesidad, setNecesidad] = useState("");
+  const [hoy, setHoy] = useState(10);
   const [enviado, setEnviado] = useState(false);
 
   useEffect(() => {
@@ -18,90 +18,80 @@ export default function Home() {
   }, []);
 
   const instalar = async () => {
-    if (!deferredPrompt) return;
-    deferredPrompt.prompt();
-    await deferredPrompt.userChoice;
-    setDeferredPrompt(null);
+    if (deferredPrompt) {
+      deferredPrompt.prompt();
+      const choice = await deferredPrompt.userChoice;
+      setDeferredPrompt(null);
+      return;
+    }
+    // Si Chrome no ha dado permiso, no nos quedamos muertos
+    const esIphone = /iphone|ipad|ipod/i.test(navigator.userAgent);
+    if (esIphone) {
+      alert("En iPhone: pulsa Compartir (cuadradito con flecha) > Añadir a pantalla de inicio");
+    } else {
+      alert("Pulsa los 3 puntitos de arriba a la derecha > Instalar aplicación / Añadir a pantalla de inicio");
+    }
   };
 
-  const enviar = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!mensaje.trim()) return;
+  const preguntar = () => {
+    if (!pueblo.trim() || !necesidad.trim()) {
+      alert("Escribe tu pueblo y qué necesitas");
+      return;
+    }
+    setHoy((h) => h + 1);
     setEnviado(true);
+    setNece­cidad("");
   };
 
   return (
-    <main className="min-h-screen bg-white px-4 py-6 max-w-md mx-auto">
-      {/* LOGO */}
-      <div className="flex flex-col items-center">
-        <img src="/icon-192.png" alt="FarmaCerca" className="w-16 h-16 rounded-2xl" />
-        <h1 className="text-3xl font-extrabold text-green-600 mt-2">FarmaCerca 24h</h1>
-        <p className="text-gray-500 text-sm mt-1 text-center">
-          Preguntamos por ti a 3 farmacias a la vez
-        </p>
+    <main style={{ maxWidth: 520, margin: "0 auto", padding: 20, fontFamily: "system-ui", background: "#fff", minHeight: "100vh" }}>
+      <div style={{ textAlign: "center" }}>
+        <img src="/logo.png" alt="FarmaCerca" style={{ width: 72, height: 72, objectFit: "contain" }} />
+        <h1 style={{ color: "#16a34a", margin: "8px 0 4px", fontSize: 32 }}>FarmaCerca 24h</h1>
+        <p style={{ color: "#666", margin: 0 }}>Preguntamos por ti a 3 farmacias a la vez</p>
       </div>
 
-      {/* BOTON INSTALAR - SOLO ESTO, SIN CARTEL */}
       <button
         onClick={instalar}
-        className="w-full bg-black text-white py-3 rounded-xl font-bold mt-5"
+        style={{ width: "100%", background: "#000", color: "#fff", border: "none", padding: 14, borderRadius: 12, fontSize: 16, fontWeight: 700, marginTop: 20, cursor: "pointer" }}
       >
         📱 Crear acceso directo en tu móvil
       </button>
-      <p className="text-center text-xs text-gray-400 mt-1">
+      <p style={{ textAlign: "center", color: "#888", fontSize: 13, margin: "8px 0 0" }}>
         1 toque y te queda el icono en pantalla como una app
       </p>
 
-      {/* CONTADOR */}
-      <div className="bg-green-50 rounded-xl py-3 text-center text-green-700 font-semibold mt-4">
-        Hoy: 10 / 250 &nbsp; Quedan: 240
+      <div style={{ background: "#eefaf3", borderRadius: 12, padding: 12, textAlign: "center", marginTop: 16, color: "#0f766e", fontWeight: 600 }}>
+        Hoy: {hoy} / 250 &nbsp; Quedan: {250 - hoy}
       </div>
 
-      {/* FORMULARIO */}
-      {!enviado ? (
-        <form onSubmit={enviar} className="mt-5 flex flex-col gap-4">
-          <div>
-            <label className="font-medium">Pueblo</label>
-            <input
-              value={pueblo}
-              onChange={(e) => setPueblo(e.target.value)}
-              className="w-full border rounded-xl px-4 py-3 mt-1"
-            />
-          </div>
+      <label style={{ display: "block", marginTop: 20, fontWeight: 600 }}>Pueblo</label>
+      <input
+        value={pueblo}
+        onChange={(e) => setPueblo(e.target.value)}
+        style={{ width: "100%", padding: 14, borderRadius: 10, border: "1px solid #ddd", marginTop: 8, fontSize: 16, boxSizing: "border-box" }}
+      />
 
-          <div>
-            <label className="font-medium">¿Qué necesitas?</label>
-            <textarea
-              value={mensaje}
-              onChange={(e) => setMensaje(e.target.value)}
-              placeholder="Ej: Paracetamol 500..."
-              className="w-full border rounded-xl px-4 py-3 mt-1 h-24"
-            />
-          </div>
+      <label style={{ display: "block", marginTop: 20, fontWeight: 600 }}>¿Qué necesitas?</label>
+      <textarea
+        value={necesidad}
+        onChange={(e) => setNecesidad(e.target.value)}
+        placeholder="Ej: Paracetamol 500..."
+        rows={3}
+        style={{ width: "100%", padding: 14, borderRadius: 10, border: "1px solid #ddd", marginTop: 8, fontSize: 16, boxSizing: "border-box" }}
+      />
 
-          <button
-            type="submit"
-            className="w-full bg-green-600 text-white py-3 rounded-xl font-bold"
-          >
-            Preguntar a 3 farmacias
-          </button>
-        </form>
-      ) : (
-        <div className="bg-green-50 rounded-xl p-4 mt-5 text-center">
-          <p className="font-bold text-green-700">✅ Enviado</p>
-          <p className="text-sm text-gray-600 mt-1">
-            Estamos preguntando en {pueblo}. Te avisamos en cuanto responda una farmacia.
-          </p>
-          <button
-            onClick={() => {
-              setEnviado(false);
-              setMensaje("");
-            }}
-            className="mt-3 underline text-sm"
-          >
-            Hacer otra consulta
-          </button>
-        </div>
+      <button
+        onClick={preguntar}
+        style={{ width: "100%", background: "#16c47f", color: "#fff", border: "none", padding: 16, borderRadius: 12, fontSize: 17, fontWeight: 700, marginTop: 20, cursor: "pointer" }}
+      >
+        Preguntar a 3 farmacias
+      </button>
+
+      {enviado && (
+        <p style={{ background: "#dcfce7", padding: 12, borderRadius: 10, textAlign: "center", marginTop: 16 }}>
+          ✅ Enviado. Te avisamos cuando responda una farmacia.
+        </p>
       )}
     </main>
   );
