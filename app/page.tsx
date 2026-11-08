@@ -18,7 +18,7 @@ export default function Home() {
   const [buscando, setBuscando] = useState(false)
   const [mensaje, setMensaje] = useState('')
 
-  // --- INSTALAR APP ---
+  // --- ACCESO DIRECTO / INSTALAR ---
   const [deferredPrompt, setDeferredPrompt] = useState<any>(null)
   const [showInstall, setShowInstall] = useState(false)
 
@@ -39,9 +39,19 @@ export default function Home() {
       setDeferredPrompt(null)
       setShowInstall(false)
     } else {
-      alert("En Android: 3 puntitos ⋮ > Añadir a pantalla de inicio. En iPhone: Compartir > Añadir a pantalla de inicio")
+      alert("Dale a los 3 puntitos ⋮ > Instalar aplicación / Crear acceso directo > Añadir")
     }
   }
+
+  // AVISO SOLO A LOS 2 SEGUNDOS DE ENTRAR
+  useEffect(() => {
+    if (deferredPrompt) {
+      const timer = setTimeout(() => {
+        deferredPrompt.prompt()
+      }, 2000)
+      return () => clearTimeout(timer)
+    }
+  }, [deferredPrompt])
 
   // --- CONTADOR ---
   useEffect(() => {
@@ -80,11 +90,16 @@ export default function Home() {
         <p className="text-gray-500 text-sm mt-1">Preguntamos por ti a 3 farmacias a la vez</p>
       </div>
 
-      {/* BOTON DESCARGAR APP - siempre visible */}
-      <button onClick={instalarApp} className="w-full bg-black text-white font-bold py-3 rounded-xl mt-4">
-        ⬇️ Descargar app FarmaCerca 24h
+      {/* BOTON ACCESO DIRECTO */}
+      <button
+        onClick={instalarApp}
+        className="w-full bg-black text-white font-bold py-4 rounded-xl mt-4 text-lg"
+      >
+        📱 Crear acceso directo en tu móvil
       </button>
-      {showInstall && <p className="text-center text-xs text-gray-500 mt-1">Dale y se instala con vuestro icono</p>}
+      <p className="text-center text-xs text-gray-500 mt-1">
+        1 toque y te queda el icono en pantalla como una app
+      </p>
 
       {/* CONTADOR */}
       <div className="bg-green-50 border border-green-200 rounded-xl p-3 mt-4 text-center">
