@@ -26,9 +26,9 @@ export default function Page() {
     }
     const esIphone = /iphone|ipad|ipod/i.test(navigator.userAgent);
     if (esIphone) {
-      alert("En iPhone: pulsa Compartir (cuadradito con flecha) > Añadir a pantalla de inicio");
+      alert("En iPhone: pulsa Compartir > Añadir a pantalla de inicio");
     } else {
-      alert("Pulsa los 3 puntitos de arriba a la derecha > Instalar aplicación / Añadir a pantalla de inicio");
+      alert("Pulsa los 3 puntitos de arriba > Instalar aplicación");
     }
   };
 
@@ -43,11 +43,11 @@ export default function Page() {
   };
 
   return (
-    <main style={{ maxWidth: 520, margin: "0 auto", padding: 20, fontFamily: "system-ui", background: "#fff", minHeight: "100vh" }}>
-      <div style={{ textAlign: "center" }}>
-        <img src="/logo.png" alt="FarmaCerca" style={{ width: 72, height: 72, objectFit: "contain" }} />
-        <h1 style={{ color: "#16a34a", margin: "8px 0 4px", fontSize: 32 }}>FarmaCerca 24h</h1>
-        <p style={{ color: "#666", margin: 0 }}>Preguntamos por ti a 3 farmacias a la vez</p>
+    <main style={{ maxWidth: 520, margin: "0 auto", padding: 20, fontFamily: "system-ui", background: "#fff", minHeight: "100vh", textAlign: "center" }}>
+      <div style={{ display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center" }}>
+        <img src="/logo.png" alt="FarmaCerca" style={{ width: 72, height: 72, objectFit: "contain", display: "block", margin: "0 auto" }} />
+        <h1 style={{ color: "#16a34a", margin: "8px 0 4px", fontSize: 32, textAlign: "center" }}>FarmaCerca 24h</h1>
+        <p style={{ color: "#666", margin: 0, textAlign: "center" }}>Preguntamos por ti a 3 farmacias a la vez</p>
       </div>
 
       <button
@@ -64,21 +64,23 @@ export default function Page() {
         Hoy: {hoy} / 250 &nbsp; Quedan: {250 - hoy}
       </div>
 
-      <label style={{ display: "block", marginTop: 20, fontWeight: 600 }}>Pueblo</label>
-      <input
-        value={pueblo}
-        onChange={(e) => setPueblo(e.target.value)}
-        style={{ width: "100%", padding: 14, borderRadius: 10, border: "1px solid #ddd", marginTop: 8, fontSize: 16, boxSizing: "border-box" }}
-      />
+      <div style={{ textAlign: "left" }}>
+        <label style={{ display: "block", marginTop: 20, fontWeight: 600 }}>Pueblo</label>
+        <input
+          value={pueblo}
+          onChange={(e) => setPueblo(e.target.value)}
+          style={{ width: "100%", padding: 14, borderRadius: 10, border: "1px solid #ddd", marginTop: 8, fontSize: 16, boxSizing: "border-box" }}
+        />
 
-      <label style={{ display: "block", marginTop: 20, fontWeight: 600 }}>¿Qué necesitas?</label>
-      <textarea
-        value={necesidad}
-        onChange={(e) => setNecesidad(e.target.value)}
-        placeholder="Ej: Paracetamol 500..."
-        rows={3}
-        style={{ width: "100%", padding: 14, borderRadius: 10, border: "1px solid #ddd", marginTop: 8, fontSize: 16, boxSizing: "border-box" }}
-      />
+        <label style={{ display: "block", marginTop: 20, fontWeight: 600 }}>¿Qué necesitas?</label>
+        <textarea
+          value={necesidad}
+          onChange={(e) => setNecesidad(e.target.value)}
+          placeholder="Ej: Paracetamol 500..."
+          rows={3}
+          style={{ width: "100%", padding: 14, borderRadius: 10, border: "1px solid #ddd", marginTop: 8, fontSize: 16, boxSizing: "border-box" }}
+        />
+      </div>
 
       <button
         onClick={preguntar}
