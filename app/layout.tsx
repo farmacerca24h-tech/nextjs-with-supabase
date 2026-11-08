@@ -5,11 +5,6 @@ export const metadata: Metadata = {
   title: "FarmaCerca 24h",
   description: "Preguntamos por ti a 3 farmacias a la vez",
   manifest: "/manifest.json",
-  appleWebApp: {
-    capable: true,
-    statusBarStyle: "default",
-    title: "FarmaCerca",
-  },
 };
 
 export const viewport: Viewport = {
@@ -20,27 +15,26 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
   return (
     <html lang="es">
       <head>
-        <link rel="icon" href="/icon-192.png" />
-        <link rel="apple-touch-icon" href="/icon-192.png" />
-      </head>
-      <body>
-        {children}
+        <link rel="icon" href="/logo.png" />
+        <link rel="apple-touch-icon" href="/logo.png" />
         <script
           dangerouslySetInnerHTML={{
             __html: `
+              window.__promptGuardado = null;
+              window.addEventListener('beforeinstallprompt', function(e) {
+                e.preventDefault();
+                window.__promptGuardado = e;
+              });
               if ('serviceWorker' in navigator) {
                 window.addEventListener('load', function() {
-                  navigator.serviceWorker.register('/sw.js').then(function(reg){
-                    console.log('SW OK', reg.scope);
-                  }).catch(function(err){
-                    console.log('SW FAIL', err);
-                  });
+                  navigator.serviceWorker.register('/sw.js');
                 });
               }
             `,
           }}
         />
-      </body>
+      </head>
+      <body>{children}</body>
     </html>
   );
 }
