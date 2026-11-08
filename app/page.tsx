@@ -18,6 +18,7 @@ export default function Home() {
   const [buscando, setBuscando] = useState(false)
   const [mensaje, setMensaje] = useState('')
   const [deferredPrompt, setDeferredPrompt] = useState<any>(null)
+  const [mostrarAyuda, setMostrarAyuda] = useState(false)
 
   useEffect(() => {
     const handler = (e: any) => {
@@ -32,9 +33,12 @@ export default function Home() {
     if (deferredPrompt) {
       deferredPrompt.prompt()
       const choice = await deferredPrompt.userChoice
-      if (choice.outcome === 'accepted') setDeferredPrompt(null)
+      if (choice.outcome === 'accepted') {
+        setDeferredPrompt(null)
+        setMostrarAyuda(false)
+      }
     } else {
-      alert("Dale a los 3 puntitos de arriba a la derecha > Añadir a pantalla de inicio")
+      setMostrarAyuda(true)
     }
   }
 
@@ -77,6 +81,16 @@ export default function Home() {
         📱 Crear acceso directo en tu móvil
       </button>
       <p style={{ textAlign: 'center', fontSize: '12px', color: '#888', margin: '6px 0' }}>1 toque y te queda el icono en pantalla como una app</p>
+
+      {mostrarAyuda && (
+        <div style={{ background: '#fff7ed', border: '1px solid #fdba74', borderRadius: '12px', padding: '14px', marginTop: '10px', fontSize: '14px' }}>
+          <p style={{ fontWeight: 700, margin: '0 0 8px' }}>Para instalarlo en 5 segundos:</p>
+          <p style={{ margin: '0 0 6px' }}>1. Dale a los <b>3 puntitos ⋮</b> arriba a la derecha</p>
+          <p style={{ margin: '0 0 6px' }}>2. Dale a <b>Añadir a pantalla de inicio</b></p>
+          <p style={{ margin: 0 }}>3. Dale a <b>Añadir / Instalar</b></p>
+          <button onClick={() => setMostrarAyuda(false)} style={{ marginTop: '10px', background: 'black', color: 'white', border: 'none', padding: '8px 14px', borderRadius: '8px' }}>Entendido</button>
+        </div>
+      )}
 
       <div style={{ background: '#f0fdf4', border: '1px solid #bbf7d0', borderRadius: '12px', padding: '12px', textAlign: 'center', marginTop: '12px' }}>
         <p style={{ fontWeight: 700, color: '#15803d', margin: 0 }}>Hoy: {contador.usadas} / 250 &nbsp; Quedan: {contador.quedan}</p>
