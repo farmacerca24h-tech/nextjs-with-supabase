@@ -17,44 +17,27 @@ export default function Home() {
   const [farmaciasTanda, setFarmaciasTanda] = useState<any[]>([])
   const [buscando, setBuscando] = useState(false)
   const [mensaje, setMensaje] = useState('')
-
-  // --- ACCESO DIRECTO / INSTALAR ---
   const [deferredPrompt, setDeferredPrompt] = useState<any>(null)
-  const [showInstall, setShowInstall] = useState(false)
 
   useEffect(() => {
     const handler = (e: any) => {
       e.preventDefault()
       setDeferredPrompt(e)
-      setShowInstall(true)
     }
     window.addEventListener("beforeinstallprompt", handler)
     return () => window.removeEventListener("beforeinstallprompt", handler)
   }, [])
 
-  // ESTA ES LA FUNCION NUEVA, SIN ALERT, INSTALA DIRECTO
   const instalarApp = async () => {
     if (deferredPrompt) {
       deferredPrompt.prompt()
       const choice = await deferredPrompt.userChoice
-      if (choice.outcome === 'accepted') {
-        setDeferredPrompt(null)
-        setShowInstall(false)
-      }
+      if (choice.outcome === 'accepted') setDeferredPrompt(null)
+    } else {
+      alert("Dale a los 3 puntitos de arriba a la derecha > Añadir a pantalla de inicio")
     }
   }
 
-  // AVISO SOLO A LOS 2 SEGUNDOS DE ENTRAR
-  useEffect(() => {
-    if (deferredPrompt) {
-      const timer = setTimeout(() => {
-        deferredPrompt.prompt()
-      }, 2000)
-      return () => clearTimeout(timer)
-    }
-  }, [deferredPrompt])
-
-  // --- CONTADOR ---
   useEffect(() => {
     const cargarContador = async () => {
       const { data } = await supabase.from('consultas').select('id', { count: 'exact' })
@@ -83,57 +66,47 @@ export default function Home() {
   }
 
   return (
-    <div className="min-h-screen bg-white p-4 max-w-md mx-auto">
-      {/* LOGO + TITULO */}
-      <div className="text-center">
-        <img src="/icon-512.png" alt="FarmaCerca 24h" className="w-20 h-20 mx-auto rounded-2xl mb-2" />
-        <h1 className="text-3xl font-black text-green-600">FarmaCerca 24h</h1>
-        <p className="text-gray-500 text-sm mt-1">Preguntamos por ti a 3 farmacias a la vez</p>
+    <div style={{ maxWidth: '420px', margin: '0 auto', padding: '16px', fontFamily: 'system-ui, sans-serif', background: 'white', minHeight: '100vh', boxSizing: 'border-box' }}>
+      <div style={{ textAlign: 'center' }}>
+        <img src="/icon-192.png" alt="FarmaCerca 24h" style={{ width: '80px', height: '80px', borderRadius: '18px', objectFit: 'cover', display: 'block', margin: '0 auto 8px' }} />
+        <h1 style={{ fontSize: '28px', fontWeight: 900, color: '#16a34a', margin: 0 }}>FarmaCerca 24h</h1>
+        <p style={{ color: '#666', fontSize: '14px', margin: '6px 0' }}>Preguntamos por ti a 3 farmacias a la vez</p>
       </div>
 
-      {/* BOTON ACCESO DIRECTO - INSTALA DIRECTO */}
-      <button
-        onClick={instalarApp}
-        className="w-full bg-black text-white font-bold py-4 rounded-xl mt-4 text-lg"
-      >
+      <button onClick={instalarApp} style={{ width: '100%', background: 'black', color: 'white', fontWeight: 700, padding: '16px', borderRadius: '12px', marginTop: '12px', fontSize: '16px', border: 'none' }}>
         📱 Crear acceso directo en tu móvil
       </button>
-      <p className="text-center text-xs text-gray-500 mt-1">
-        1 toque y te queda el icono en pantalla como una app
-      </p>
+      <p style={{ textAlign: 'center', fontSize: '12px', color: '#888', margin: '6px 0' }}>1 toque y te queda el icono en pantalla como una app</p>
 
-      {/* CONTADOR */}
-      <div className="bg-green-50 border border-green-200 rounded-xl p-3 mt-4 text-center">
-        <p className="font-bold text-green-700">Hoy: {contador.usadas} / 250 &nbsp; Quedan: {contador.quedan}</p>
+      <div style={{ background: '#f0fdf4', border: '1px solid #bbf7d0', borderRadius: '12px', padding: '12px', textAlign: 'center', marginTop: '12px' }}>
+        <p style={{ fontWeight: 700, color: '#15803d', margin: 0 }}>Hoy: {contador.usadas} / 250 &nbsp; Quedan: {contador.quedan}</p>
       </div>
 
-      {/* BUSCADOR */}
-      <div className="mt-4 space-y-3">
-        <label className="block text-sm font-bold">Pueblo</label>
-        <input value={pueblo} onChange={(e) => setPueblo(e.target.value)} className="w-full border rounded-xl p-3" placeholder="Iznájar" />
-        <label className="block text-sm font-bold">¿Qué necesitas?</label>
-        <input value={producto} onChange={(e) => setProducto(e.target.value)} className="w-full border rounded-xl p-3" placeholder="Ej: Paracetamol 500..." />
-        <label className="flex items-center gap-2 text-sm">
+      <div style={{ marginTop: '16px', display: 'flex', flexDirection: 'column', gap: '10px' }}>
+        <label style={{ fontWeight: 700, fontSize: '14px' }}>Pueblo</label>
+        <input value={pueblo} onChange={(e) => setPueblo(e.target.value)} style={{ width: '100%', border: '1px solid #ddd', borderRadius: '12px', padding: '12px', fontSize: '16px', boxSizing: 'border-box' }} placeholder="Iznájar" />
+        <label style={{ fontWeight: 700, fontSize: '14px' }}>¿Qué necesitas?</label>
+        <input value={producto} onChange={(e) => setProducto(e.target.value)} style={{ width: '100%', border: '1px solid #ddd', borderRadius: '12px', padding: '12px', fontSize: '16px', boxSizing: 'border-box' }} placeholder="Ej: Paracetamol 500..." />
+        <label style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '14px' }}>
           <input type="checkbox" checked={quierePedir} onChange={(e) => setQuierePedir(e.target.checked)} />
           Quiero pedirlo si lo tienen
         </label>
-        <button onClick={buscar} disabled={buscando} className="w-full bg-green-600 text-white font-bold py-3 rounded-xl">
+        <button onClick={buscar} disabled={buscando} style={{ width: '100%', background: '#16a34a', color: 'white', fontWeight: 700, padding: '14px', borderRadius: '12px', fontSize: '16px', border: 'none' }}>
           {buscando ? 'Buscando...' : '🔍 Buscar en farmacias'}
         </button>
-        {mensaje && <p className="text-center text-sm text-gray-600">{mensaje}</p>}
+        {mensaje && <p style={{ textAlign: 'center', fontSize: '14px', color: '#555' }}>{mensaje}</p>}
       </div>
 
-      {/* RESULTADO */}
       {farmaciasTanda.length > 0 && (
-        <div className="mt-4 space-y-2">
-          <p className="font-bold">Tanda {tandaActual} - Preguntando a:</p>
+        <div style={{ marginTop: '16px', display: 'flex', flexDirection: 'column', gap: '8px' }}>
+          <p style={{ fontWeight: 700 }}>Tanda {tandaActual} - Preguntando a:</p>
           {farmaciasTanda.map((f: any, i: number) => (
-            <div key={i} className="border rounded-xl p-3">
-              <p className="font-bold">{f.nombre || `Farmacia ${i + 1}`}</p>
-              <p className="text-sm text-gray-500">{f.pueblo}</p>
+            <div key={i} style={{ border: '1px solid #eee', borderRadius: '12px', padding: '12px' }}>
+              <p style={{ fontWeight: 700, margin: 0 }}>{f.nombre || `Farmacia ${i + 1}`}</p>
+              <p style={{ fontSize: '13px', color: '#888', margin: 0 }}>{f.pueblo}</p>
             </div>
           ))}
-          {consultaId && <p className="text-xs text-center text-gray-400">Consulta #{consultaId}</p>}
+          {consultaId && <p style={{ fontSize: '12px', textAlign: 'center', color: '#aaa' }}>Consulta #{consultaId}</p>}
         </div>
       )}
     </div>
