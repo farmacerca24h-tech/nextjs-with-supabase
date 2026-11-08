@@ -20,11 +20,10 @@ export default function Page() {
   const instalar = async () => {
     if (deferredPrompt) {
       deferredPrompt.prompt();
-      const choice = await deferredPrompt.userChoice;
+      await deferredPrompt.userChoice;
       setDeferredPrompt(null);
       return;
     }
-    // Si Chrome no ha dado permiso, no nos quedamos muertos
     const esIphone = /iphone|ipad|ipod/i.test(navigator.userAgent);
     if (esIphone) {
       alert("En iPhone: pulsa Compartir (cuadradito con flecha) > Añadir a pantalla de inicio");
@@ -40,7 +39,7 @@ export default function Page() {
     }
     setHoy((h) => h + 1);
     setEnviado(true);
-    setNece­cidad("");
+    setNecesidad("");
   };
 
   return (
