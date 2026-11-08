@@ -9,8 +9,14 @@ export default function Page() {
   const [enviado, setEnviado] = useState(false);
 
   useEffect(() => {
+    // 1. Mira si el permiso ya llegó antes (el cazador de layout.tsx)
+    if ((window as any).__promptGuardado) {
+      setDeferredPrompt((window as any).__promptGuardado);
+    }
+    // 2. Y sigue escuchando por si llega después
     const handler = (e: any) => {
       e.preventDefault();
+      (window as any).__promptGuardado = e;
       setDeferredPrompt(e);
     };
     window.addEventListener("beforeinstallprompt", handler);
@@ -18,9 +24,11 @@ export default function Page() {
   }, []);
 
   const instalar = async () => {
-    if (deferredPrompt) {
-      deferredPrompt.prompt();
-      await deferredPrompt.userChoice;
+    const prompt = deferredPrompt || (window as any).__promptGuardado;
+    if (prompt) {
+      prompt.prompt();
+      await prompt.userChoice;
+      (window as any).__promptGuardado = null;
       setDeferredPrompt(null);
       return;
     }
@@ -46,8 +54,8 @@ export default function Page() {
     <main style={{ maxWidth: 520, margin: "0 auto", padding: 20, fontFamily: "system-ui", background: "#fff", minHeight: "100vh", textAlign: "center" }}>
       <div style={{ display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center" }}>
         <img src="/logo.png" alt="FarmaCerca" style={{ width: 72, height: 72, objectFit: "contain", display: "block", margin: "0 auto" }} />
-        <h1 style={{ color: "#16a34a", margin: "8px 0 4px", fontSize: 32, textAlign: "center" }}>FarmaCerca 24h</h1>
-        <p style={{ color: "#666", margin: 0, textAlign: "center" }}>Preguntamos por ti a 3 farmacias a la vez</p>
+        <h1 style={{ color: "#16a34a", margin: "8px 0 4px", fontSize: 32 }}>FarmaCerca 24h</h1>
+        <p style={{ color: "#666", margin: 0 }}>Preguntamos por ti a 3 farmacias a la vez</p>
       </div>
 
       <button
@@ -66,26 +74,12 @@ export default function Page() {
 
       <div style={{ textAlign: "left" }}>
         <label style={{ display: "block", marginTop: 20, fontWeight: 600 }}>Pueblo</label>
-        <input
-          value={pueblo}
-          onChange={(e) => setPueblo(e.target.value)}
-          style={{ width: "100%", padding: 14, borderRadius: 10, border: "1px solid #ddd", marginTop: 8, fontSize: 16, boxSizing: "border-box" }}
-        />
-
+        <input value={pueblo} onChange={(e) => setPueblo(e.target.value)} style={{ width: "100%", padding: 14, borderRadius: 10, border: "1px solid #ddd", marginTop: 8, fontSize: 16, boxSizing: "border-box" }} />
         <label style={{ display: "block", marginTop: 20, fontWeight: 600 }}>¿Qué necesitas?</label>
-        <textarea
-          value={necesidad}
-          onChange={(e) => setNecesidad(e.target.value)}
-          placeholder="Ej: Paracetamol 500..."
-          rows={3}
-          style={{ width: "100%", padding: 14, borderRadius: 10, border: "1px solid #ddd", marginTop: 8, fontSize: 16, boxSizing: "border-box" }}
-        />
+        <textarea value={necesidad} onChange={(e) => setNecesidad(e.target.value)} placeholder="Ej: Paracetamol 500..." rows={3} style={{ width: "100%", padding: 14, borderRadius: 10, border: "1px solid #ddd", marginTop: 8, fontSize: 16, boxSizing: "border-box" }} />
       </div>
 
-      <button
-        onClick={preguntar}
-        style={{ width: "100%", background: "#16c47f", color: "#fff", border: "none", padding: 16, borderRadius: 12, fontSize: 17, fontWeight: 700, marginTop: 20, cursor: "pointer" }}
-      >
+      <button onClick={preguntar} style={{ width: "100%", background: "#16c47f", color: "#fff", border: "none", padding: 16, borderRadius: 12, fontSize: 17, fontWeight: 700, marginTop: 20, cursor: "pointer" }}>
         Preguntar a 3 farmacias
       </button>
 
