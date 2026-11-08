@@ -32,14 +32,15 @@ export default function Home() {
     return () => window.removeEventListener("beforeinstallprompt", handler)
   }, [])
 
+  // ESTA ES LA FUNCION NUEVA, SIN ALERT, INSTALA DIRECTO
   const instalarApp = async () => {
     if (deferredPrompt) {
       deferredPrompt.prompt()
-      await deferredPrompt.userChoice
-      setDeferredPrompt(null)
-      setShowInstall(false)
-    } else {
-      alert("Dale a los 3 puntitos ⋮ > Instalar aplicación / Crear acceso directo > Añadir")
+      const choice = await deferredPrompt.userChoice
+      if (choice.outcome === 'accepted') {
+        setDeferredPrompt(null)
+        setShowInstall(false)
+      }
     }
   }
 
@@ -90,7 +91,7 @@ export default function Home() {
         <p className="text-gray-500 text-sm mt-1">Preguntamos por ti a 3 farmacias a la vez</p>
       </div>
 
-      {/* BOTON ACCESO DIRECTO */}
+      {/* BOTON ACCESO DIRECTO - INSTALA DIRECTO */}
       <button
         onClick={instalarApp}
         className="w-full bg-black text-white font-bold py-4 rounded-xl mt-4 text-lg"
