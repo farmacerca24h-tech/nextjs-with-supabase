@@ -20,30 +20,42 @@ export default function Home() {
   const [chat, setChat] = useState<any[]>([])
   const chatRef = useRef<any>(null)
 
-  // NOTIFICACIONES AUTOMATICAS AL ABRIR
+  // --- INSTALAR / ACCESO DIRECTO - SIEMPRE VISIBLE ---
+  const [promptInstalar, setPromptInstalar] = useState<any>(null)
+  const [yaInstalada, setYaInstalada] = useState(false)
+
+  useEffect(() => {
+    // Detecta si ya está instalada como app
+    if (window.matchMedia('(display-mode: standalone)').matches) setYaInstalada(true)
+    const handler = (e: any) => { e.preventDefault(); setPromptInstalar(e) }
+    window.addEventListener('beforeinstallprompt', handler)
+    return () => window.removeEventListener('beforeinstallprompt', handler)
+  }, [])
+
+  const instalarApp = async () => {
+    if (yaInstalada) {
+      alert('Ya la tienes instalada. No tienes que borrarla nunca, se actualiza sola cuando hago cambios. Solo cierra la app y vuelve a abrirla.')
+      return
+    }
+    if (!promptInstalar) {
+      alert('En Android: 3 puntos de Chrome > Instalar app / Añadir a pantalla de inicio. En iPhone: Compartir > Añadir a pantalla de inicio.')
+      return
+    }
+    promptInstalar.prompt()
+    const res = await promptInstalar.userChoice
+    if (res && res.outcome === 'accepted') setYaInstalada(true)
+  }
+
+  // --- NOTIFICACIONES ---
   const [notificaciones, setNotificaciones] = useState(false)
   useEffect(() => {
-    const auto = async () => {
-      try {
-        if ('Notification' in window && Notification.permission === 'granted') {
-          setNotificaciones(true)
-          return
-        }
-        // Intenta pedir permiso solo al abrir, sin tocar nada
-        if ('Notification' in window && Notification.permission === 'default') {
-          const permiso = await Notification.requestPermission()
-          if (permiso === 'granted') setNotificaciones(true)
-        }
-      } catch (e) {}
-    }
-    // Espera 1 segundo para que cargue la app y lo pide solo
-    const t = setTimeout(auto, 1000)
-    return () => clearTimeout(t)
+    if ('Notification' in window && Notification.permission === 'granted') setNotificaciones(true)
   }, [])
 
   const activarNotificaciones = async () => {
     const permiso = await Notification.requestPermission()
     if (permiso === 'granted') setNotificaciones(true)
+    else alert('Dale a Permitir cuando te salga la ventanita arriba.')
   }
 
   const avisar = (texto: string) => {
@@ -90,11 +102,7 @@ export default function Home() {
   const simularSi = async (farmacia: any) => {
     setFarmaciaEncontrada(farmacia); setEstado('encontrado')
     const hora = new Date().toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'})
-    const nuevoChat = [
-      ...chat,
-      { de: 'farmacia', nombre: farmacia.nombre, texto: 'Hola! Sí, lo tenemos en stock ✅ ¿Te lo reservo?', hora: hora }
-    ]
-    setChat(nuevoChat)
+    setChat([...chat, { de: 'farmacia', nombre: farmacia.nombre, texto: 'Hola! Sí, lo tenemos en stock ✅ ¿Te lo reservo?', hora: hora }])
     setMensaje(farmacia.nombre + ' SI lo tiene')
     avisar(farmacia.nombre + ': Sí, lo tenemos ✅ ¿Te lo reservo?')
     bajarChat()
@@ -127,12 +135,17 @@ export default function Home() {
         <p className="text-gray-500 text-lg mt-2">Preguntamos por ti a 3 farmacias a la vez</p>
       </div>
 
-      <button onClick={activarNotificaciones} className="w-full mt-4 bg-black text-white font-bold py-3 rounded-2xl text-base">
+      {/* BOTON DESCARGAR - AHORA SIEMPRE SALE */}
+      <button onClick={instalarApp} className="w-full mt-4 bg-black text-white font-bold py-4 rounded-2xl text-lg">
+        📱 {yaInstalada ? 'Ya tienes la app instalada - Se actualiza sola' : 'Crear acceso directo en tu móvil'}
+      </button>
+      <p className="text-center text-gray-400 text-sm mt-1">1 toque y te queda el icono en pantalla como una app. Cuando haga cambios, no borres nada, solo cierra y abre de nuevo.</p>
+
+      <button onClick={activarNotificaciones} className="w-full mt-3 bg-black text-white font-bold py-3 rounded-2xl text-base">
         {notificaciones ? '🔔 Notificaciones ACTIVADAS' : '🔔 Activar notificaciones cuando contesten'}
       </button>
-      <p className="text-center text-gray-400 text-xs mt-1">Ahora se pide sola al abrir la app. Si no sale, dale aquí.</p>
 
-      <div className="bg-green-50 rounded-2xl p-3 mt-3 text-center text-green-700 font-bold text-lg">
+      <div className="bg-green-50 rounded-2xl p-3 mt-4 text-center text-green-700 font-bold text-lg">
         Hoy: {contador.usadas} / 250 &nbsp; Quedan: {contador.quedan}
       </div>
 
@@ -142,7 +155,6 @@ export default function Home() {
       <textarea value={producto} onChange={e => setProducto(e.target.value)} placeholder="Ej: Paracetamol 500..." className="w-full border rounded-2xl p-4 text-lg h-24" />
       <button onClick={buscar} className="w-full mt-4 bg-green-500 text-white font-bold py-4 rounded-2xl text-xl">Preguntar a 3 farmacias</button>
 
-      {/* CHAT TIPO WHATSAPP */}
       {chat.length > 0 && (
         <div ref={chatRef} className="mt-4 bg-[#ECE5DD] rounded-2xl p-3 max-h-[400px] overflow-y-auto">
           <div className="text-center text-xs bg-[#FFF3C4] rounded-lg py-1 px-2 mb-3">🔒 Los mensajes están cifrados de extremo a extremo</div>
