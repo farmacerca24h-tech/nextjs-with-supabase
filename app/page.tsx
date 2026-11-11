@@ -1,86 +1,1141 @@
-"use client";
-import { useEffect, useState } from "react";
+'use client'
+import { useState, useEffect } from 'react'
+import { createClient } from '@supabase/supabase-js'
 
-export default function Page() {
-  const [deferredPrompt, setDeferredPrompt] = useState<any>(null);
-  const [pueblo, setPueblo] = useState("Iznájar");
-  const [necesidad, setNecesidad] = useState("");
-  const [hoy, setHoy] = useState(10);
-  const [enviado, setEnviado] = useState(false);
+const supabase = createClient(
+  process.env.NEXT_PUBLIC_SUPABASE_URL!,
+  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+)
+
+export default function Home() {
+  const [pueblo, setPueblo] = useState('Montroy')
+  const [producto, setProducto] = useState('')
+  const [contador, setContador] = useState({ usadas: 0, quedan: 250 })
+  const [consultaId, setConsultaId] = useState<number | null>(null)
+  const [tandaActual, setTandaActual] = useState(1)
+  const [farmaciasTanda, setFarmaciasTanda] = useState<any[]>([])
+  const [estado, setEstado] = useState('idle')
+  const [farmaciaEncontrada, setFarmaciaEncontrada] = useState<any>(null)
+  const [mensaje, setMensaje] = useState('')
+
+  // --- INSTALAR APP ---
+  const [puedeInstalar, setPuedeInstalar] = useState(false)
+  const [promptInstalar, setPromptInstalar] = useState<any>(null)
 
   useEffect(() => {
-    if ('serviceWorker' in navigator) {
-      navigator.serviceWorker.register('/sw.js').catch(() => {});
-    }
-    if ((window as any).__promptGuardado) {
-      setDeferredPrompt((window as any).__promptGuardado);
-    }
     const handler = (e: any) => {
-      e.preventDefault();
-      (window as any).__promptGuardado = e;
-      setDeferredPrompt(e);
-    };
-    window.addEventListener("beforeinstallprompt", handler);
-    return () => window.removeEventListener("beforeinstallprompt", handler);
-  }, []);
-
-  const instalar = async () => {
-    const prompt = deferredPrompt || (window as any).__promptGuardado;
-    if (prompt) {
-      prompt.prompt();
-      await prompt.userChoice;
-      (window as any).__promptGuardado = null;
-      setDeferredPrompt(null);
-      return;
+      e.preventDefault()
+      setPromptInstalar(e)
+      setPuedeInstalar(true)
     }
-    alert("Pulsa los 3 puntitos de arriba > Instalar aplicación");
-  };
+    window.addEventListener('beforeinstallprompt', handler)
+    return () => window.removeEventListener('beforeinstallprompt', handler)
+  }, [])
 
-  const preguntar = () => {
-    if (!pueblo.trim() || !necesidad.trim()) {
-      alert("Escribe tu pueblo y qué necesitas");
-      return;
+  const instalarApp = async () => {
+    if (!promptInstalar) {
+      alert('En iPhone: dale a Compartir > Añadir a pantalla de inicio.\nEn Android: dale a los 3 puntos > Instalar app.')
+      return
     }
-    setHoy((h) => h + 1);
-    setEnviado(true);
-    setNecesidad("");
-  };
+    promptInstalar.prompt()
+    const { outcome } = await promptInstalar.userChoice
+    if (outcome === 'accepted') setPuedeInstalar(false)
+  }
+
+  // --- NOTIFICACIONES ---
+  const [notificaciones, setNotificaciones] = useState(false)
+
+  const activarNotificaciones = async () => {
+    const permiso = await Notification.requestPermission()
+    if (permiso === 'granted') {
+      setNotificaciones(true)
+      alert('✅ Notificaciones activadas. Deja la app abierta y te avisaremos cuando contesten.')
+    } else {
+      alert('No has dado permiso. Ve a Ajustes del móvil > FarmaCerca > Notificaciones y actívalas.')
+    }
+  }
+
+  const avisar = (texto: string) => {
+    if (notificaciones && Notification.permission === 'granted') {
+      new Notification('FarmaCerca 24h 💊', { body: texto, icon: '/icon-512.png' })
+      if (navigator.vibrate) navigator.vibrate([200, 100, 200])
+    }
+  }
+
+  // Contador de hoy
+  useEffect(() => {
+    const cargarContador = async () => {
+      const hoy = new Date(); hoy.setHours(0,0,0,0)
+      const { data } = await supabase
+        .from('consultas_farmacias')
+        .select('farmacia_id')
+        .gte('created_at', hoy.toISOString())
+      const unicas = new Set(data?.map((d:any) => d.farmacia_id) || []).size
+      setContador({ usadas: unicas, quedan: 250 - unicas })
+    }
+    cargarContador()
+  }, [estado])
+
+  const buscar = async () => {
+    if (!producto) return alert('Escribe un producto')
+    if (contador.usadas >= 250) return alert('Hoy hemos llegado al límite de 250, inténtalo mañana')
+
+    setEstado('buscando')
+    setMensaje(`Preguntando a las 3 más cercanas... Tanda ${1}`)
+    
+    const { data: consulta } = await supabase
+      .from('consultas')
+      .insert({ producto, pueblo, estado: 'buscando' })
+      .select().single()
+    
+    if (!consulta) return
+    setConsultaId(consulta.id)
+    setTandaActual(1)
+
+    const { data: farmacias } = await supabase
+      .from('farmacias')
+      .select('*')
+      .ilike('pueblo', `%${pueblo}%`)
+      .limit(30)
+
+    if (!farmacias || farmacias.length === 0) {
+      setEstado('sin_stock')
+      setMensaje('No hay farmacias registradas en ese pueblo')
+      return
+    }
+
+    const tanda1 = farmacias.slice(0, 3)
+    setFarmaciasTanda(tanda1)
+
+    for (const f of tanda1) {
+      await supabase.from('consultas_farmacias').insert({
+        consulta_id: consulta.id,
+        farmacia_id: f.id,
+        tanda: 1,
+        estado: 'enviado'
+      })
+    }
+    localStorage.setItem('farmacias_busqueda', JSON.stringify(farmacias))
+  }
+
+  const simularSi = async (farmacia: any) => {
+    setFarmaciaEncontrada(farmacia)
+    setEstado('encontrado')
+    setMensaje(`✅ ${farmacia.nombre} SÍ lo tiene`)
+    avisar(`✅ ${farmacia.nombre} SÍ lo tiene`)
+    await supabase.from('consultas_farmacias')
+      .update({ estado: 'si_tiene' })
+      .eq('consulta_id', consultaId)
+      .eq('farmacia_id', farmacia.id)
+    await supabase.from('consultas')
+      .update({ estado: 'encontrado', farmacia_encontrada_id: farmacia.id })
+      .eq('id', consultaId)
+  }
+
+  const simularNoTanda = async () => {
+    const todas = JSON.parse(localStorage.getItem('farmacias_busqueda') || '[]')
+    const siguienteTanda = tandaActual + 1
+    const inicio = (siguienteTanda - 1) * 3
+    const siguientes = todas.slice(inicio, inicio + 3)
+
+    if (siguientes.length === 0) {
+      setEstado('sin_stock')
+      setMensaje('Ninguna farmacia de la zona lo tiene. Lo sentimos.')
+      return
+    }
+
+    setTandaActual(siguienteTanda)
+    setFarmaciasTanda(siguientes)
+    setMensaje(`Las 3 primeras dijeron NO. Pasando a la siguiente tanda (${siguienteTanda})...`)
+
+    for (const f of siguientes) {
+      await supabase.from('consultas_farmacias').insert({
+        consulta_id: consultaId,
+        farmacia_id: f.id,
+        tanda: siguienteTanda,
+        estado: 'enviado'
+      })
+    }
+  }
+
+  const hablarDirecto = () => {
+    if (!farmaciaEncontrada) return
+    const telefono = farmaciaEncontrada.whatsapp || farmaciaEncontrada.telefono
+    const texto = encodeURIComponent(`Hola, soy de FarmaCerca 24h. Me han dicho que tenéis ${producto}. ¿Me lo podéis reservar?`)
+    window.open(`https://wa.me/${telefono}?text=${texto}`, '_blank')
+  }
 
   return (
-    <main style={{ maxWidth: 520, margin: "0 auto", padding: 20, fontFamily: "system-ui", background: "#fff", minHeight: "100vh", textAlign: "center" }}>
-      <div style={{ display: "flex", flexDirection: "column", alignItems: "center" }}>
-        <img src="/logo.png" alt="FarmaCerca" style={{ width: 72, height: 72, objectFit: "contain", display: "block", margin: "0 auto" }} />
-        <h1 style={{ color: "#16a34a", margin: "8px 0 4px", fontSize: 32 }}>FarmaCerca 24h</h1>
-        <p style={{ color: "#666", margin: 0 }}>Preguntamos por ti a 3 farmacias a la vez</p>
+    <div className="max-w-md mx-auto p-4 min-h-screen bg-gray-50">
+      <div className="bg-yellow-50 border border-yellow-200 rounded-xl p-3 mb-4 text-sm">
+        <div className="flex justify-between font-bold">
+          <span>📊 Hoy: {contador.usadas} / 250 farmacias</span>
+          <span>Quedan: {contador.quedan}</span>
+        </div>
+        <div className="w-full bg-gray-200 rounded-full h-2 mt-2">
+          <div className={`h-2 rounded-full ${contador.usadas > 200 ? 'bg-red-500' : 'bg-green-500'}`} style={{ width: `${(contador.usadas / 250) * 100}%` }} />
+        </div>
       </div>
 
-      <button onClick={instalar} style={{ width: "100%", background: "#000", color: "#fff", border: "none", padding: 14, borderRadius: 12, fontSize: 16, fontWeight: 700, marginTop: 20, cursor: "pointer" }}>
-        📱 Crear acceso directo en tu móvil
-      </button>
-      <p style={{ textAlign: "center", color: "#888", fontSize: 13, margin: "8px 0 0" }}>
-        1 toque y te queda el icono en pantalla como una app
-      </p>
+      <h1 className="text-2xl font-bold text-center mb-1">FarmaCerca 24h</h1>
+      <p className="text-center text-gray-500 text-sm mb-4">Preguntamos por ti a 3 farmacias a la vez</p>
 
-      <div style={{ background: "#eefaf3", borderRadius: 12, padding: 12, textAlign: "center", marginTop: 16, color: "#0f766e", fontWeight: 600 }}>
-        Hoy: {hoy} / 250 &nbsp; Quedan: {250 - hoy}
-      </div>
-
-      <div style={{ textAlign: "left" }}>
-        <label style={{ display: "block", marginTop: 20, fontWeight: 600 }}>Pueblo</label>
-        <input value={pueblo} onChange={(e) => setPueblo(e.target.value)} style={{ width: "100%", padding: 14, borderRadius: 10, border: "1px solid #ddd", marginTop: 8, fontSize: 16, boxSizing: "border-box" }} />
-        <label style={{ display: "block", marginTop: 20, fontWeight: 600 }}>¿Qué necesitas?</label>
-        <textarea value={necesidad} onChange={(e) => setNecesidad(e.target.value)} placeholder="Ej: Paracetamol 500..." rows={3} style={{ width: "100%", padding: 14, borderRadius: 10, border: "1px solid #ddd", marginTop: 8, fontSize: 16, boxSizing: "border-box" }} />
-      </div>
-
-      <button onClick={preguntar} style={{ width: "100%", background: "#16c47f", color: "#fff", border: "none", padding: 16, borderRadius: 12, fontSize: 17, fontWeight: 700, marginTop: 20, cursor: "pointer" }}>
-        Preguntar a 3 farmacias
-      </button>
-
-      {enviado && (
-        <p style={{ background: "#dcfce7", padding: 12, borderRadius: 10, textAlign: "center", marginTop: 16 }}>
-          ✅ Enviado. Te avisamos cuando responda una farmacia.
-        </p>
+      {/* BOTON INSTALAR */}
+      {puedeInstalar && (
+        <button onClick={instalarApp} className="w-full mb-2 bg-black text-white font-bold py-2 rounded-xl text-sm">
+          ⬇️ Instalar app en la pantalla
+        </button>
       )}
-    </main>
-  );
+
+      {/* BOTON NOTIFICACIONES - ESTE ES EL QUE TE FALTABA */}
+      <button onClick={activarNotificaciones} className="w-full mb-3 bg-black text-white font-bold py-2 rounded-xl text-sm">
+        {notificaciones ? '🔔 Notificaciones ACTIVADAS' : '🔔 Activar notificaciones cuando contesten'}
+      </button>
+
+      <input value={pueblo} onChange={e => setPueblo(e.target.value)} placeholder="Pueblo" className="w-full border rounded-xl p-3 mb-2" />
+      <input value={producto} onChange={e => setProducto(e.target.value)} placeholder="¿Qué buscas? Ej: Paracetamol" className="w-full border rounded-xl p-3 mb-3" />
+      <button onClick={buscar} className="w-full bg-green-600 text-white font-bold py-3 rounded-xl">🔍 Preguntar stock automáticamente</button>
+
+      {mensaje && <div className="mt-4 bg-white border rounded-xl p-3 text-sm font-medium">{mensaje}</div>}
+
+      {estado === 'buscando' && (
+        <div className="mt-4 bg-white border rounded-xl p-3">
+          <p className="font-bold text-sm mb-2">Tanda {tandaActual} - Preguntando a:</p>
+          {farmaciasTanda.map((f: any) => (
+            <div key={f.id} className="flex justify-between items-center border-b py-2 last:border-0">
+              <span className="text-sm">{f.nombre}</span>
+              <button onClick={() => simularSi(f)} className="bg-green-100 text-green-700 text-xs font-bold px-2 py-1 rounded">Simular SÍ</button>
+            </div>
+          ))}
+          <button onClick={simularNoTanda} className="w-full mt-3 bg-orange-100 text-orange-700 font-bold py-2 rounded-lg text-sm">
+            Simular: Las 3 dicen NO → Siguiente tanda
+          </button>
+          <p className="text-[11px] text-gray-400 mt-2 text-center">En modo real, esto lo contestan las farmacias por WhatsApp con 1 = SÍ, 2 = NO</p>
+        </div>
+      )}
+
+      {estado === 'encontrado' && farmaciaEncontrada && (
+        <div className="mt-4 bg-green-50 border border-green-300 rounded-xl p-4 text-center">
+          <p className="font-bold text-green-800">✅ Encontrado en {farmaciaEncontrada.nombre}</p>
+          <button onClick={hablarDirecto} className="w-full mt-3 bg-green-600 text-white font-bold py-3 rounded-xl">💬 Hablar directo con esa farmacia</button>
+        </div>
+      )}
+
+      {estado === 'sin_stock' && (
+        <div className="mt-4 bg-red-50 border rounded-xl p-3 text-center text-sm">❌ {mensaje}</div>
+      )}
+    </div>
+  )
+}'use client'
+import { useState, useEffect } from 'react'
+import { createClient } from '@supabase/supabase-js'
+
+const supabase = createClient(
+  process.env.NEXT_PUBLIC_SUPABASE_URL!,
+  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+)
+
+export default function Home() {
+  const [pueblo, setPueblo] = useState('Montroy')
+  const [producto, setProducto] = useState('')
+  const [contador, setContador] = useState({ usadas: 0, quedan: 250 })
+  const [consultaId, setConsultaId] = useState<number | null>(null)
+  const [tandaActual, setTandaActual] = useState(1)
+  const [farmaciasTanda, setFarmaciasTanda] = useState<any[]>([])
+  const [estado, setEstado] = useState('idle')
+  const [farmaciaEncontrada, setFarmaciaEncontrada] = useState<any>(null)
+  const [mensaje, setMensaje] = useState('')
+
+  // --- INSTALAR APP ---
+  const [puedeInstalar, setPuedeInstalar] = useState(false)
+  const [promptInstalar, setPromptInstalar] = useState<any>(null)
+
+  useEffect(() => {
+    const handler = (e: any) => {
+      e.preventDefault()
+      setPromptInstalar(e)
+      setPuedeInstalar(true)
+    }
+    window.addEventListener('beforeinstallprompt', handler)
+    return () => window.removeEventListener('beforeinstallprompt', handler)
+  }, [])
+
+  const instalarApp = async () => {
+    if (!promptInstalar) {
+      alert('En iPhone: dale a Compartir > Añadir a pantalla de inicio.\nEn Android: dale a los 3 puntos > Instalar app.')
+      return
+    }
+    promptInstalar.prompt()
+    const { outcome } = await promptInstalar.userChoice
+    if (outcome === 'accepted') setPuedeInstalar(false)
+  }
+
+  // --- NOTIFICACIONES ---
+  const [notificaciones, setNotificaciones] = useState(false)
+
+  const activarNotificaciones = async () => {
+    const permiso = await Notification.requestPermission()
+    if (permiso === 'granted') {
+      setNotificaciones(true)
+      alert('✅ Notificaciones activadas. Deja la app abierta y te avisaremos cuando contesten.')
+    } else {
+      alert('No has dado permiso. Ve a Ajustes del móvil > FarmaCerca > Notificaciones y actívalas.')
+    }
+  }
+
+  const avisar = (texto: string) => {
+    if (notificaciones && Notification.permission === 'granted') {
+      new Notification('FarmaCerca 24h 💊', { body: texto, icon: '/icon-512.png' })
+      if (navigator.vibrate) navigator.vibrate([200, 100, 200])
+    }
+  }
+
+  // Contador de hoy
+  useEffect(() => {
+    const cargarContador = async () => {
+      const hoy = new Date(); hoy.setHours(0,0,0,0)
+      const { data } = await supabase
+        .from('consultas_farmacias')
+        .select('farmacia_id')
+        .gte('created_at', hoy.toISOString())
+      const unicas = new Set(data?.map((d:any) => d.farmacia_id) || []).size
+      setContador({ usadas: unicas, quedan: 250 - unicas })
+    }
+    cargarContador()
+  }, [estado])
+
+  const buscar = async () => {
+    if (!producto) return alert('Escribe un producto')
+    if (contador.usadas >= 250) return alert('Hoy hemos llegado al límite de 250, inténtalo mañana')
+
+    setEstado('buscando')
+    setMensaje(`Preguntando a las 3 más cercanas... Tanda ${1}`)
+    
+    const { data: consulta } = await supabase
+      .from('consultas')
+      .insert({ producto, pueblo, estado: 'buscando' })
+      .select().single()
+    
+    if (!consulta) return
+    setConsultaId(consulta.id)
+    setTandaActual(1)
+
+    const { data: farmacias } = await supabase
+      .from('farmacias')
+      .select('*')
+      .ilike('pueblo', `%${pueblo}%`)
+      .limit(30)
+
+    if (!farmacias || farmacias.length === 0) {
+      setEstado('sin_stock')
+      setMensaje('No hay farmacias registradas en ese pueblo')
+      return
+    }
+
+    const tanda1 = farmacias.slice(0, 3)
+    setFarmaciasTanda(tanda1)
+
+    for (const f of tanda1) {
+      await supabase.from('consultas_farmacias').insert({
+        consulta_id: consulta.id,
+        farmacia_id: f.id,
+        tanda: 1,
+        estado: 'enviado'
+      })
+    }
+    localStorage.setItem('farmacias_busqueda', JSON.stringify(farmacias))
+  }
+
+  const simularSi = async (farmacia: any) => {
+    setFarmaciaEncontrada(farmacia)
+    setEstado('encontrado')
+    setMensaje(`✅ ${farmacia.nombre} SÍ lo tiene`)
+    avisar(`✅ ${farmacia.nombre} SÍ lo tiene`)
+    await supabase.from('consultas_farmacias')
+      .update({ estado: 'si_tiene' })
+      .eq('consulta_id', consultaId)
+      .eq('farmacia_id', farmacia.id)
+    await supabase.from('consultas')
+      .update({ estado: 'encontrado', farmacia_encontrada_id: farmacia.id })
+      .eq('id', consultaId)
+  }
+
+  const simularNoTanda = async () => {
+    const todas = JSON.parse(localStorage.getItem('farmacias_busqueda') || '[]')
+    const siguienteTanda = tandaActual + 1
+    const inicio = (siguienteTanda - 1) * 3
+    const siguientes = todas.slice(inicio, inicio + 3)
+
+    if (siguientes.length === 0) {
+      setEstado('sin_stock')
+      setMensaje('Ninguna farmacia de la zona lo tiene. Lo sentimos.')
+      return
+    }
+
+    setTandaActual(siguienteTanda)
+    setFarmaciasTanda(siguientes)
+    setMensaje(`Las 3 primeras dijeron NO. Pasando a la siguiente tanda (${siguienteTanda})...`)
+
+    for (const f of siguientes) {
+      await supabase.from('consultas_farmacias').insert({
+        consulta_id: consultaId,
+        farmacia_id: f.id,
+        tanda: siguienteTanda,
+        estado: 'enviado'
+      })
+    }
+  }
+
+  const hablarDirecto = () => {
+    if (!farmaciaEncontrada) return
+    const telefono = farmaciaEncontrada.whatsapp || farmaciaEncontrada.telefono
+    const texto = encodeURIComponent(`Hola, soy de FarmaCerca 24h. Me han dicho que tenéis ${producto}. ¿Me lo podéis reservar?`)
+    window.open(`https://wa.me/${telefono}?text=${texto}`, '_blank')
+  }
+
+  return (
+    <div className="max-w-md mx-auto p-4 min-h-screen bg-gray-50">
+      <div className="bg-yellow-50 border border-yellow-200 rounded-xl p-3 mb-4 text-sm">
+        <div className="flex justify-between font-bold">
+          <span>📊 Hoy: {contador.usadas} / 250 farmacias</span>
+          <span>Quedan: {contador.quedan}</span>
+        </div>
+        <div className="w-full bg-gray-200 rounded-full h-2 mt-2">
+          <div className={`h-2 rounded-full ${contador.usadas > 200 ? 'bg-red-500' : 'bg-green-500'}`} style={{ width: `${(contador.usadas / 250) * 100}%` }} />
+        </div>
+      </div>
+
+      <h1 className="text-2xl font-bold text-center mb-1">FarmaCerca 24h</h1>
+      <p className="text-center text-gray-500 text-sm mb-4">Preguntamos por ti a 3 farmacias a la vez</p>
+
+      {/* BOTON INSTALAR */}
+      {puedeInstalar && (
+        <button onClick={instalarApp} className="w-full mb-2 bg-black text-white font-bold py-2 rounded-xl text-sm">
+          ⬇️ Instalar app en la pantalla
+        </button>
+      )}
+
+      {/* BOTON NOTIFICACIONES - ESTE ES EL QUE TE FALTABA */}
+      <button onClick={activarNotificaciones} className="w-full mb-3 bg-black text-white font-bold py-2 rounded-xl text-sm">
+        {notificaciones ? '🔔 Notificaciones ACTIVADAS' : '🔔 Activar notificaciones cuando contesten'}
+      </button>
+
+      <input value={pueblo} onChange={e => setPueblo(e.target.value)} placeholder="Pueblo" className="w-full border rounded-xl p-3 mb-2" />
+      <input value={producto} onChange={e => setProducto(e.target.value)} placeholder="¿Qué buscas? Ej: Paracetamol" className="w-full border rounded-xl p-3 mb-3" />
+      <button onClick={buscar} className="w-full bg-green-600 text-white font-bold py-3 rounded-xl">🔍 Preguntar stock automáticamente</button>
+
+      {mensaje && <div className="mt-4 bg-white border rounded-xl p-3 text-sm font-medium">{mensaje}</div>}
+
+      {estado === 'buscando' && (
+        <div className="mt-4 bg-white border rounded-xl p-3">
+          <p className="font-bold text-sm mb-2">Tanda {tandaActual} - Preguntando a:</p>
+          {farmaciasTanda.map((f: any) => (
+            <div key={f.id} className="flex justify-between items-center border-b py-2 last:border-0">
+              <span className="text-sm">{f.nombre}</span>
+              <button onClick={() => simularSi(f)} className="bg-green-100 text-green-700 text-xs font-bold px-2 py-1 rounded">Simular SÍ</button>
+            </div>
+          ))}
+          <button onClick={simularNoTanda} className="w-full mt-3 bg-orange-100 text-orange-700 font-bold py-2 rounded-lg text-sm">
+            Simular: Las 3 dicen NO → Siguiente tanda
+          </button>
+          <p className="text-[11px] text-gray-400 mt-2 text-center">En modo real, esto lo contestan las farmacias por WhatsApp con 1 = SÍ, 2 = NO</p>
+        </div>
+      )}
+
+      {estado === 'encontrado' && farmaciaEncontrada && (
+        <div className="mt-4 bg-green-50 border border-green-300 rounded-xl p-4 text-center">
+          <p className="font-bold text-green-800">✅ Encontrado en {farmaciaEncontrada.nombre}</p>
+          <button onClick={hablarDirecto} className="w-full mt-3 bg-green-600 text-white font-bold py-3 rounded-xl">💬 Hablar directo con esa farmacia</button>
+        </div>
+      )}
+
+      {estado === 'sin_stock' && (
+        <div className="mt-4 bg-red-50 border rounded-xl p-3 text-center text-sm">❌ {mensaje}</div>
+      )}
+    </div>
+  )
+}'use client'
+import { useState, useEffect } from 'react'
+import { createClient } from '@supabase/supabase-js'
+
+const supabase = createClient(
+  process.env.NEXT_PUBLIC_SUPABASE_URL!,
+  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+)
+
+export default function Home() {
+  const [pueblo, setPueblo] = useState('Montroy')
+  const [producto, setProducto] = useState('')
+  const [contador, setContador] = useState({ usadas: 0, quedan: 250 })
+  const [consultaId, setConsultaId] = useState<number | null>(null)
+  const [tandaActual, setTandaActual] = useState(1)
+  const [farmaciasTanda, setFarmaciasTanda] = useState<any[]>([])
+  const [estado, setEstado] = useState('idle')
+  const [farmaciaEncontrada, setFarmaciaEncontrada] = useState<any>(null)
+  const [mensaje, setMensaje] = useState('')
+
+  // --- INSTALAR APP ---
+  const [puedeInstalar, setPuedeInstalar] = useState(false)
+  const [promptInstalar, setPromptInstalar] = useState<any>(null)
+
+  useEffect(() => {
+    const handler = (e: any) => {
+      e.preventDefault()
+      setPromptInstalar(e)
+      setPuedeInstalar(true)
+    }
+    window.addEventListener('beforeinstallprompt', handler)
+    return () => window.removeEventListener('beforeinstallprompt', handler)
+  }, [])
+
+  const instalarApp = async () => {
+    if (!promptInstalar) {
+      alert('En iPhone: dale a Compartir > Añadir a pantalla de inicio.\nEn Android: dale a los 3 puntos > Instalar app.')
+      return
+    }
+    promptInstalar.prompt()
+    const { outcome } = await promptInstalar.userChoice
+    if (outcome === 'accepted') setPuedeInstalar(false)
+  }
+
+  // --- NOTIFICACIONES ---
+  const [notificaciones, setNotificaciones] = useState(false)
+
+  const activarNotificaciones = async () => {
+    const permiso = await Notification.requestPermission()
+    if (permiso === 'granted') {
+      setNotificaciones(true)
+      alert('✅ Notificaciones activadas. Deja la app abierta y te avisaremos cuando contesten.')
+    } else {
+      alert('No has dado permiso. Ve a Ajustes del móvil > FarmaCerca > Notificaciones y actívalas.')
+    }
+  }
+
+  const avisar = (texto: string) => {
+    if (notificaciones && Notification.permission === 'granted') {
+      new Notification('FarmaCerca 24h 💊', { body: texto, icon: '/icon-512.png' })
+      if (navigator.vibrate) navigator.vibrate([200, 100, 200])
+    }
+  }
+
+  // Contador de hoy
+  useEffect(() => {
+    const cargarContador = async () => {
+      const hoy = new Date(); hoy.setHours(0,0,0,0)
+      const { data } = await supabase
+        .from('consultas_farmacias')
+        .select('farmacia_id')
+        .gte('created_at', hoy.toISOString())
+      const unicas = new Set(data?.map((d:any) => d.farmacia_id) || []).size
+      setContador({ usadas: unicas, quedan: 250 - unicas })
+    }
+    cargarContador()
+  }, [estado])
+
+  const buscar = async () => {
+    if (!producto) return alert('Escribe un producto')
+    if (contador.usadas >= 250) return alert('Hoy hemos llegado al límite de 250, inténtalo mañana')
+
+    setEstado('buscando')
+    setMensaje(`Preguntando a las 3 más cercanas... Tanda ${1}`)
+    
+    const { data: consulta } = await supabase
+      .from('consultas')
+      .insert({ producto, pueblo, estado: 'buscando' })
+      .select().single()
+    
+    if (!consulta) return
+    setConsultaId(consulta.id)
+    setTandaActual(1)
+
+    const { data: farmacias } = await supabase
+      .from('farmacias')
+      .select('*')
+      .ilike('pueblo', `%${pueblo}%`)
+      .limit(30)
+
+    if (!farmacias || farmacias.length === 0) {
+      setEstado('sin_stock')
+      setMensaje('No hay farmacias registradas en ese pueblo')
+      return
+    }
+
+    const tanda1 = farmacias.slice(0, 3)
+    setFarmaciasTanda(tanda1)
+
+    for (const f of tanda1) {
+      await supabase.from('consultas_farmacias').insert({
+        consulta_id: consulta.id,
+        farmacia_id: f.id,
+        tanda: 1,
+        estado: 'enviado'
+      })
+    }
+    localStorage.setItem('farmacias_busqueda', JSON.stringify(farmacias))
+  }
+
+  const simularSi = async (farmacia: any) => {
+    setFarmaciaEncontrada(farmacia)
+    setEstado('encontrado')
+    setMensaje(`✅ ${farmacia.nombre} SÍ lo tiene`)
+    avisar(`✅ ${farmacia.nombre} SÍ lo tiene`)
+    await supabase.from('consultas_farmacias')
+      .update({ estado: 'si_tiene' })
+      .eq('consulta_id', consultaId)
+      .eq('farmacia_id', farmacia.id)
+    await supabase.from('consultas')
+      .update({ estado: 'encontrado', farmacia_encontrada_id: farmacia.id })
+      .eq('id', consultaId)
+  }
+
+  const simularNoTanda = async () => {
+    const todas = JSON.parse(localStorage.getItem('farmacias_busqueda') || '[]')
+    const siguienteTanda = tandaActual + 1
+    const inicio = (siguienteTanda - 1) * 3
+    const siguientes = todas.slice(inicio, inicio + 3)
+
+    if (siguientes.length === 0) {
+      setEstado('sin_stock')
+      setMensaje('Ninguna farmacia de la zona lo tiene. Lo sentimos.')
+      return
+    }
+
+    setTandaActual(siguienteTanda)
+    setFarmaciasTanda(siguientes)
+    setMensaje(`Las 3 primeras dijeron NO. Pasando a la siguiente tanda (${siguienteTanda})...`)
+
+    for (const f of siguientes) {
+      await supabase.from('consultas_farmacias').insert({
+        consulta_id: consultaId,
+        farmacia_id: f.id,
+        tanda: siguienteTanda,
+        estado: 'enviado'
+      })
+    }
+  }
+
+  const hablarDirecto = () => {
+    if (!farmaciaEncontrada) return
+    const telefono = farmaciaEncontrada.whatsapp || farmaciaEncontrada.telefono
+    const texto = encodeURIComponent(`Hola, soy de FarmaCerca 24h. Me han dicho que tenéis ${producto}. ¿Me lo podéis reservar?`)
+    window.open(`https://wa.me/${telefono}?text=${texto}`, '_blank')
+  }
+
+  return (
+    <div className="max-w-md mx-auto p-4 min-h-screen bg-gray-50">
+      <div className="bg-yellow-50 border border-yellow-200 rounded-xl p-3 mb-4 text-sm">
+        <div className="flex justify-between font-bold">
+          <span>📊 Hoy: {contador.usadas} / 250 farmacias</span>
+          <span>Quedan: {contador.quedan}</span>
+        </div>
+        <div className="w-full bg-gray-200 rounded-full h-2 mt-2">
+          <div className={`h-2 rounded-full ${contador.usadas > 200 ? 'bg-red-500' : 'bg-green-500'}`} style={{ width: `${(contador.usadas / 250) * 100}%` }} />
+        </div>
+      </div>
+
+      <h1 className="text-2xl font-bold text-center mb-1">FarmaCerca 24h</h1>
+      <p className="text-center text-gray-500 text-sm mb-4">Preguntamos por ti a 3 farmacias a la vez</p>
+
+      {/* BOTON INSTALAR */}
+      {puedeInstalar && (
+        <button onClick={instalarApp} className="w-full mb-2 bg-black text-white font-bold py-2 rounded-xl text-sm">
+          ⬇️ Instalar app en la pantalla
+        </button>
+      )}
+
+      {/* BOTON NOTIFICACIONES - ESTE ES EL QUE TE FALTABA */}
+      <button onClick={activarNotificaciones} className="w-full mb-3 bg-black text-white font-bold py-2 rounded-xl text-sm">
+        {notificaciones ? '🔔 Notificaciones ACTIVADAS' : '🔔 Activar notificaciones cuando contesten'}
+      </button>
+
+      <input value={pueblo} onChange={e => setPueblo(e.target.value)} placeholder="Pueblo" className="w-full border rounded-xl p-3 mb-2" />
+      <input value={producto} onChange={e => setProducto(e.target.value)} placeholder="¿Qué buscas? Ej: Paracetamol" className="w-full border rounded-xl p-3 mb-3" />
+      <button onClick={buscar} className="w-full bg-green-600 text-white font-bold py-3 rounded-xl">🔍 Preguntar stock automáticamente</button>
+
+      {mensaje && <div className="mt-4 bg-white border rounded-xl p-3 text-sm font-medium">{mensaje}</div>}
+
+      {estado === 'buscando' && (
+        <div className="mt-4 bg-white border rounded-xl p-3">
+          <p className="font-bold text-sm mb-2">Tanda {tandaActual} - Preguntando a:</p>
+          {farmaciasTanda.map((f: any) => (
+            <div key={f.id} className="flex justify-between items-center border-b py-2 last:border-0">
+              <span className="text-sm">{f.nombre}</span>
+              <button onClick={() => simularSi(f)} className="bg-green-100 text-green-700 text-xs font-bold px-2 py-1 rounded">Simular SÍ</button>
+            </div>
+          ))}
+          <button onClick={simularNoTanda} className="w-full mt-3 bg-orange-100 text-orange-700 font-bold py-2 rounded-lg text-sm">
+            Simular: Las 3 dicen NO → Siguiente tanda
+          </button>
+          <p className="text-[11px] text-gray-400 mt-2 text-center">En modo real, esto lo contestan las farmacias por WhatsApp con 1 = SÍ, 2 = NO</p>
+        </div>
+      )}
+
+      {estado === 'encontrado' && farmaciaEncontrada && (
+        <div className="mt-4 bg-green-50 border border-green-300 rounded-xl p-4 text-center">
+          <p className="font-bold text-green-800">✅ Encontrado en {farmaciaEncontrada.nombre}</p>
+          <button onClick={hablarDirecto} className="w-full mt-3 bg-green-600 text-white font-bold py-3 rounded-xl">💬 Hablar directo con esa farmacia</button>
+        </div>
+      )}
+
+      {estado === 'sin_stock' && (
+        <div className="mt-4 bg-red-50 border rounded-xl p-3 text-center text-sm">❌ {mensaje}</div>
+      )}
+    </div>
+  )
+}'use client'
+import { useState, useEffect } from 'react'
+import { createClient } from '@supabase/supabase-js'
+
+const supabase = createClient(
+  process.env.NEXT_PUBLIC_SUPABASE_URL!,
+  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+)
+
+export default function Home() {
+  const [pueblo, setPueblo] = useState('Montroy')
+  const [producto, setProducto] = useState('')
+  const [contador, setContador] = useState({ usadas: 0, quedan: 250 })
+  const [consultaId, setConsultaId] = useState<number | null>(null)
+  const [tandaActual, setTandaActual] = useState(1)
+  const [farmaciasTanda, setFarmaciasTanda] = useState<any[]>([])
+  const [estado, setEstado] = useState('idle')
+  const [farmaciaEncontrada, setFarmaciaEncontrada] = useState<any>(null)
+  const [mensaje, setMensaje] = useState('')
+
+  // --- INSTALAR APP ---
+  const [puedeInstalar, setPuedeInstalar] = useState(false)
+  const [promptInstalar, setPromptInstalar] = useState<any>(null)
+
+  useEffect(() => {
+    const handler = (e: any) => {
+      e.preventDefault()
+      setPromptInstalar(e)
+      setPuedeInstalar(true)
+    }
+    window.addEventListener('beforeinstallprompt', handler)
+    return () => window.removeEventListener('beforeinstallprompt', handler)
+  }, [])
+
+  const instalarApp = async () => {
+    if (!promptInstalar) {
+      alert('En iPhone: dale a Compartir > Añadir a pantalla de inicio.\nEn Android: dale a los 3 puntos > Instalar app.')
+      return
+    }
+    promptInstalar.prompt()
+    const { outcome } = await promptInstalar.userChoice
+    if (outcome === 'accepted') setPuedeInstalar(false)
+  }
+
+  // --- NOTIFICACIONES ---
+  const [notificaciones, setNotificaciones] = useState(false)
+
+  const activarNotificaciones = async () => {
+    const permiso = await Notification.requestPermission()
+    if (permiso === 'granted') {
+      setNotificaciones(true)
+      alert('✅ Notificaciones activadas. Deja la app abierta y te avisaremos cuando contesten.')
+    } else {
+      alert('No has dado permiso. Ve a Ajustes del móvil > FarmaCerca > Notificaciones y actívalas.')
+    }
+  }
+
+  const avisar = (texto: string) => {
+    if (notificaciones && Notification.permission === 'granted') {
+      new Notification('FarmaCerca 24h 💊', { body: texto, icon: '/icon-512.png' })
+      if (navigator.vibrate) navigator.vibrate([200, 100, 200])
+    }
+  }
+
+  // Contador de hoy
+  useEffect(() => {
+    const cargarContador = async () => {
+      const hoy = new Date(); hoy.setHours(0,0,0,0)
+      const { data } = await supabase
+        .from('consultas_farmacias')
+        .select('farmacia_id')
+        .gte('created_at', hoy.toISOString())
+      const unicas = new Set(data?.map((d:any) => d.farmacia_id) || []).size
+      setContador({ usadas: unicas, quedan: 250 - unicas })
+    }
+    cargarContador()
+  }, [estado])
+
+  const buscar = async () => {
+    if (!producto) return alert('Escribe un producto')
+    if (contador.usadas >= 250) return alert('Hoy hemos llegado al límite de 250, inténtalo mañana')
+
+    setEstado('buscando')
+    setMensaje(`Preguntando a las 3 más cercanas... Tanda ${1}`)
+    
+    const { data: consulta } = await supabase
+      .from('consultas')
+      .insert({ producto, pueblo, estado: 'buscando' })
+      .select().single()
+    
+    if (!consulta) return
+    setConsultaId(consulta.id)
+    setTandaActual(1)
+
+    const { data: farmacias } = await supabase
+      .from('farmacias')
+      .select('*')
+      .ilike('pueblo', `%${pueblo}%`)
+      .limit(30)
+
+    if (!farmacias || farmacias.length === 0) {
+      setEstado('sin_stock')
+      setMensaje('No hay farmacias registradas en ese pueblo')
+      return
+    }
+
+    const tanda1 = farmacias.slice(0, 3)
+    setFarmaciasTanda(tanda1)
+
+    for (const f of tanda1) {
+      await supabase.from('consultas_farmacias').insert({
+        consulta_id: consulta.id,
+        farmacia_id: f.id,
+        tanda: 1,
+        estado: 'enviado'
+      })
+    }
+    localStorage.setItem('farmacias_busqueda', JSON.stringify(farmacias))
+  }
+
+  const simularSi = async (farmacia: any) => {
+    setFarmaciaEncontrada(farmacia)
+    setEstado('encontrado')
+    setMensaje(`✅ ${farmacia.nombre} SÍ lo tiene`)
+    avisar(`✅ ${farmacia.nombre} SÍ lo tiene`)
+    await supabase.from('consultas_farmacias')
+      .update({ estado: 'si_tiene' })
+      .eq('consulta_id', consultaId)
+      .eq('farmacia_id', farmacia.id)
+    await supabase.from('consultas')
+      .update({ estado: 'encontrado', farmacia_encontrada_id: farmacia.id })
+      .eq('id', consultaId)
+  }
+
+  const simularNoTanda = async () => {
+    const todas = JSON.parse(localStorage.getItem('farmacias_busqueda') || '[]')
+    const siguienteTanda = tandaActual + 1
+    const inicio = (siguienteTanda - 1) * 3
+    const siguientes = todas.slice(inicio, inicio + 3)
+
+    if (siguientes.length === 0) {
+      setEstado('sin_stock')
+      setMensaje('Ninguna farmacia de la zona lo tiene. Lo sentimos.')
+      return
+    }
+
+    setTandaActual(siguienteTanda)
+    setFarmaciasTanda(siguientes)
+    setMensaje(`Las 3 primeras dijeron NO. Pasando a la siguiente tanda (${siguienteTanda})...`)
+
+    for (const f of siguientes) {
+      await supabase.from('consultas_farmacias').insert({
+        consulta_id: consultaId,
+        farmacia_id: f.id,
+        tanda: siguienteTanda,
+        estado: 'enviado'
+      })
+    }
+  }
+
+  const hablarDirecto = () => {
+    if (!farmaciaEncontrada) return
+    const telefono = farmaciaEncontrada.whatsapp || farmaciaEncontrada.telefono
+    const texto = encodeURIComponent(`Hola, soy de FarmaCerca 24h. Me han dicho que tenéis ${producto}. ¿Me lo podéis reservar?`)
+    window.open(`https://wa.me/${telefono}?text=${texto}`, '_blank')
+  }
+
+  return (
+    <div className="max-w-md mx-auto p-4 min-h-screen bg-gray-50">
+      <div className="bg-yellow-50 border border-yellow-200 rounded-xl p-3 mb-4 text-sm">
+        <div className="flex justify-between font-bold">
+          <span>📊 Hoy: {contador.usadas} / 250 farmacias</span>
+          <span>Quedan: {contador.quedan}</span>
+        </div>
+        <div className="w-full bg-gray-200 rounded-full h-2 mt-2">
+          <div className={`h-2 rounded-full ${contador.usadas > 200 ? 'bg-red-500' : 'bg-green-500'}`} style={{ width: `${(contador.usadas / 250) * 100}%` }} />
+        </div>
+      </div>
+
+      <h1 className="text-2xl font-bold text-center mb-1">FarmaCerca 24h</h1>
+      <p className="text-center text-gray-500 text-sm mb-4">Preguntamos por ti a 3 farmacias a la vez</p>
+
+      {/* BOTON INSTALAR */}
+      {puedeInstalar && (
+        <button onClick={instalarApp} className="w-full mb-2 bg-black text-white font-bold py-2 rounded-xl text-sm">
+          ⬇️ Instalar app en la pantalla
+        </button>
+      )}
+
+      {/* BOTON NOTIFICACIONES - ESTE ES EL QUE TE FALTABA */}
+      <button onClick={activarNotificaciones} className="w-full mb-3 bg-black text-white font-bold py-2 rounded-xl text-sm">
+        {notificaciones ? '🔔 Notificaciones ACTIVADAS' : '🔔 Activar notificaciones cuando contesten'}
+      </button>
+
+      <input value={pueblo} onChange={e => setPueblo(e.target.value)} placeholder="Pueblo" className="w-full border rounded-xl p-3 mb-2" />
+      <input value={producto} onChange={e => setProducto(e.target.value)} placeholder="¿Qué buscas? Ej: Paracetamol" className="w-full border rounded-xl p-3 mb-3" />
+      <button onClick={buscar} className="w-full bg-green-600 text-white font-bold py-3 rounded-xl">🔍 Preguntar stock automáticamente</button>
+
+      {mensaje && <div className="mt-4 bg-white border rounded-xl p-3 text-sm font-medium">{mensaje}</div>}
+
+      {estado === 'buscando' && (
+        <div className="mt-4 bg-white border rounded-xl p-3">
+          <p className="font-bold text-sm mb-2">Tanda {tandaActual} - Preguntando a:</p>
+          {farmaciasTanda.map((f: any) => (
+            <div key={f.id} className="flex justify-between items-center border-b py-2 last:border-0">
+              <span className="text-sm">{f.nombre}</span>
+              <button onClick={() => simularSi(f)} className="bg-green-100 text-green-700 text-xs font-bold px-2 py-1 rounded">Simular SÍ</button>
+            </div>
+          ))}
+          <button onClick={simularNoTanda} className="w-full mt-3 bg-orange-100 text-orange-700 font-bold py-2 rounded-lg text-sm">
+            Simular: Las 3 dicen NO → Siguiente tanda
+          </button>
+          <p className="text-[11px] text-gray-400 mt-2 text-center">En modo real, esto lo contestan las farmacias por WhatsApp con 1 = SÍ, 2 = NO</p>
+        </div>
+      )}
+
+      {estado === 'encontrado' && farmaciaEncontrada && (
+        <div className="mt-4 bg-green-50 border border-green-300 rounded-xl p-4 text-center">
+          <p className="font-bold text-green-800">✅ Encontrado en {farmaciaEncontrada.nombre}</p>
+          <button onClick={hablarDirecto} className="w-full mt-3 bg-green-600 text-white font-bold py-3 rounded-xl">💬 Hablar directo con esa farmacia</button>
+        </div>
+      )}
+
+      {estado === 'sin_stock' && (
+        <div className="mt-4 bg-red-50 border rounded-xl p-3 text-center text-sm">❌ {mensaje}</div>
+      )}
+    </div>
+  )
+}'use client'
+import { useState, useEffect } from 'react'
+import { createClient } from '@supabase/supabase-js'
+
+const supabase = createClient(
+  process.env.NEXT_PUBLIC_SUPABASE_URL!,
+  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+)
+
+export default function Home() {
+  const [pueblo, setPueblo] = useState('Montroy')
+  const [producto, setProducto] = useState('')
+  const [contador, setContador] = useState({ usadas: 0, quedan: 250 })
+  const [consultaId, setConsultaId] = useState<number | null>(null)
+  const [tandaActual, setTandaActual] = useState(1)
+  const [farmaciasTanda, setFarmaciasTanda] = useState<any[]>([])
+  const [estado, setEstado] = useState('idle')
+  const [farmaciaEncontrada, setFarmaciaEncontrada] = useState<any>(null)
+  const [mensaje, setMensaje] = useState('')
+
+  // --- INSTALAR APP ---
+  const [puedeInstalar, setPuedeInstalar] = useState(false)
+  const [promptInstalar, setPromptInstalar] = useState<any>(null)
+
+  useEffect(() => {
+    const handler = (e: any) => {
+      e.preventDefault()
+      setPromptInstalar(e)
+      setPuedeInstalar(true)
+    }
+    window.addEventListener('beforeinstallprompt', handler)
+    return () => window.removeEventListener('beforeinstallprompt', handler)
+  }, [])
+
+  const instalarApp = async () => {
+    if (!promptInstalar) {
+      alert('En iPhone: dale a Compartir > Añadir a pantalla de inicio.\nEn Android: dale a los 3 puntos > Instalar app.')
+      return
+    }
+    promptInstalar.prompt()
+    const { outcome } = await promptInstalar.userChoice
+    if (outcome === 'accepted') setPuedeInstalar(false)
+  }
+
+  // --- NOTIFICACIONES ---
+  const [notificaciones, setNotificaciones] = useState(false)
+
+  const activarNotificaciones = async () => {
+    const permiso = await Notification.requestPermission()
+    if (permiso === 'granted') {
+      setNotificaciones(true)
+      alert('✅ Notificaciones activadas. Deja la app abierta y te avisaremos cuando contesten.')
+    } else {
+      alert('No has dado permiso. Ve a Ajustes del móvil > FarmaCerca > Notificaciones y actívalas.')
+    }
+  }
+
+  const avisar = (texto: string) => {
+    if (notificaciones && Notification.permission === 'granted') {
+      new Notification('FarmaCerca 24h 💊', { body: texto, icon: '/icon-512.png' })
+      if (navigator.vibrate) navigator.vibrate([200, 100, 200])
+    }
+  }
+
+  // Contador de hoy
+  useEffect(() => {
+    const cargarContador = async () => {
+      const hoy = new Date(); hoy.setHours(0,0,0,0)
+      const { data } = await supabase
+        .from('consultas_farmacias')
+        .select('farmacia_id')
+        .gte('created_at', hoy.toISOString())
+      const unicas = new Set(data?.map((d:any) => d.farmacia_id) || []).size
+      setContador({ usadas: unicas, quedan: 250 - unicas })
+    }
+    cargarContador()
+  }, [estado])
+
+  const buscar = async () => {
+    if (!producto) return alert('Escribe un producto')
+    if (contador.usadas >= 250) return alert('Hoy hemos llegado al límite de 250, inténtalo mañana')
+
+    setEstado('buscando')
+    setMensaje(`Preguntando a las 3 más cercanas... Tanda ${1}`)
+    
+    const { data: consulta } = await supabase
+      .from('consultas')
+      .insert({ producto, pueblo, estado: 'buscando' })
+      .select().single()
+    
+    if (!consulta) return
+    setConsultaId(consulta.id)
+    setTandaActual(1)
+
+    const { data: farmacias } = await supabase
+      .from('farmacias')
+      .select('*')
+      .ilike('pueblo', `%${pueblo}%`)
+      .limit(30)
+
+    if (!farmacias || farmacias.length === 0) {
+      setEstado('sin_stock')
+      setMensaje('No hay farmacias registradas en ese pueblo')
+      return
+    }
+
+    const tanda1 = farmacias.slice(0, 3)
+    setFarmaciasTanda(tanda1)
+
+    for (const f of tanda1) {
+      await supabase.from('consultas_farmacias').insert({
+        consulta_id: consulta.id,
+        farmacia_id: f.id,
+        tanda: 1,
+        estado: 'enviado'
+      })
+    }
+    localStorage.setItem('farmacias_busqueda', JSON.stringify(farmacias))
+  }
+
+  const simularSi = async (farmacia: any) => {
+    setFarmaciaEncontrada(farmacia)
+    setEstado('encontrado')
+    setMensaje(`✅ ${farmacia.nombre} SÍ lo tiene`)
+    avisar(`✅ ${farmacia.nombre} SÍ lo tiene`)
+    await supabase.from('consultas_farmacias')
+      .update({ estado: 'si_tiene' })
+      .eq('consulta_id', consultaId)
+      .eq('farmacia_id', farmacia.id)
+    await supabase.from('consultas')
+      .update({ estado: 'encontrado', farmacia_encontrada_id: farmacia.id })
+      .eq('id', consultaId)
+  }
+
+  const simularNoTanda = async () => {
+    const todas = JSON.parse(localStorage.getItem('farmacias_busqueda') || '[]')
+    const siguienteTanda = tandaActual + 1
+    const inicio = (siguienteTanda - 1) * 3
+    const siguientes = todas.slice(inicio, inicio + 3)
+
+    if (siguientes.length === 0) {
+      setEstado('sin_stock')
+      setMensaje('Ninguna farmacia de la zona lo tiene. Lo sentimos.')
+      return
+    }
+
+    setTandaActual(siguienteTanda)
+    setFarmaciasTanda(siguientes)
+    setMensaje(`Las 3 primeras dijeron NO. Pasando a la siguiente tanda (${siguienteTanda})...`)
+
+    for (const f of siguientes) {
+      await supabase.from('consultas_farmacias').insert({
+        consulta_id: consultaId,
+        farmacia_id: f.id,
+        tanda: siguienteTanda,
+        estado: 'enviado'
+      })
+    }
+  }
+
+  const hablarDirecto = () => {
+    if (!farmaciaEncontrada) return
+    const telefono = farmaciaEncontrada.whatsapp || farmaciaEncontrada.telefono
+    const texto = encodeURIComponent(`Hola, soy de FarmaCerca 24h. Me han dicho que tenéis ${producto}. ¿Me lo podéis reservar?`)
+    window.open(`https://wa.me/${telefono}?text=${texto}`, '_blank')
+  }
+
+  return (
+    <div className="max-w-md mx-auto p-4 min-h-screen bg-gray-50">
+      <div className="bg-yellow-50 border border-yellow-200 rounded-xl p-3 mb-4 text-sm">
+        <div className="flex justify-between font-bold">
+          <span>📊 Hoy: {contador.usadas} / 250 farmacias</span>
+          <span>Quedan: {contador.quedan}</span>
+        </div>
+        <div className="w-full bg-gray-200 rounded-full h-2 mt-2">
+          <div className={`h-2 rounded-full ${contador.usadas > 200 ? 'bg-red-500' : 'bg-green-500'}`} style={{ width: `${(contador.usadas / 250) * 100}%` }} />
+        </div>
+      </div>
+
+      <h1 className="text-2xl font-bold text-center mb-1">FarmaCerca 24h</h1>
+      <p className="text-center text-gray-500 text-sm mb-4">Preguntamos por ti a 3 farmacias a la vez</p>
+
+      {/* BOTON INSTALAR */}
+      {puedeInstalar && (
+        <button onClick={instalarApp} className="w-full mb-2 bg-black text-white font-bold py-2 rounded-xl text-sm">
+          ⬇️ Instalar app en la pantalla
+        </button>
+      )}
+
+      {/* BOTON NOTIFICACIONES - ESTE ES EL QUE TE FALTABA */}
+      <button onClick={activarNotificaciones} className="w-full mb-3 bg-black text-white font-bold py-2 rounded-xl text-sm">
+        {notificaciones ? '🔔 Notificaciones ACTIVADAS' : '🔔 Activar notificaciones cuando contesten'}
+      </button>
+
+      <input value={pueblo} onChange={e => setPueblo(e.target.value)} placeholder="Pueblo" className="w-full border rounded-xl p-3 mb-2" />
+      <input value={producto} onChange={e => setProducto(e.target.value)} placeholder="¿Qué buscas? Ej: Paracetamol" className="w-full border rounded-xl p-3 mb-3" />
+      <button onClick={buscar} className="w-full bg-green-600 text-white font-bold py-3 rounded-xl">🔍 Preguntar stock automáticamente</button>
+
+      {mensaje && <div className="mt-4 bg-white border rounded-xl p-3 text-sm font-medium">{mensaje}</div>}
+
+      {estado === 'buscando' && (
+        <div className="mt-4 bg-white border rounded-xl p-3">
+          <p className="font-bold text-sm mb-2">Tanda {tandaActual} - Preguntando a:</p>
+          {farmaciasTanda.map((f: any) => (
+            <div key={f.id} className="flex justify-between items-center border-b py-2 last:border-0">
+              <span className="text-sm">{f.nombre}</span>
+              <button onClick={() => simularSi(f)} className="bg-green-100 text-green-700 text-xs font-bold px-2 py-1 rounded">Simular SÍ</button>
+            </div>
+          ))}
+          <button onClick={simularNoTanda} className="w-full mt-3 bg-orange-100 text-orange-700 font-bold py-2 rounded-lg text-sm">
+            Simular: Las 3 dicen NO → Siguiente tanda
+          </button>
+          <p className="text-[11px] text-gray-400 mt-2 text-center">En modo real, esto lo contestan las farmacias por WhatsApp con 1 = SÍ, 2 = NO</p>
+        </div>
+      )}
+
+      {estado === 'encontrado' && farmaciaEncontrada && (
+        <div className="mt-4 bg-green-50 border border-green-300 rounded-xl p-4 text-center">
+          <p className="font-bold text-green-800">✅ Encontrado en {farmaciaEncontrada.nombre}</p>
+          <button onClick={hablarDirecto} className="w-full mt-3 bg-green-600 text-white font-bold py-3 rounded-xl">💬 Hablar directo con esa farmacia</button>
+        </div>
+      )}
+
+      {estado === 'sin_stock' && (
+        <div className="mt-4 bg-red-50 border rounded-xl p-3 text-center text-sm">❌ {mensaje}</div>
+      )}
+    </div>
+  )
 }
