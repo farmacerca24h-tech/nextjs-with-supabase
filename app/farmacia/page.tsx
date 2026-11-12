@@ -11,8 +11,16 @@ export default function Farmacia() {
   const [pregunta, setPregunta] = useState<any>(null);
   const MI_ID = 1;
 
+  async function buscarPendientes() {
+    const { data } = await supabase.from('consultas').select('*').eq('farmacia_id', MI_ID).eq('estado', 'pendiente').order('created_at', { ascending: false }).limit(1);
+    if (data && data.length > 0) setPregunta(data[0]);
+  }
+
   useEffect(() => {
     Notification.requestPermission();
+    buscarPendientes();
+    // Revisa cada 3 segundos por si acaso no llega en directo
+    const intervalo = setInterval(buscarPendientes, 3000);
     const channel = supabase
       .channel('pedidos-farmacia-' + MI_ID)
       .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'consultas', filter: `farmacia_id=eq.${MI_ID}` }, (payload: any) => {
@@ -23,7 +31,7 @@ export default function Farmacia() {
         if (navigator.vibrate) navigator.vibrate([200, 100, 200]);
       })
       .subscribe();
-    return () => { supabase.removeChannel(channel) };
+    return () => { supabase.removeChannel(channel); clearInterval(intervalo); };
   }, []);
 
   async function contestar(tiene: boolean) {
