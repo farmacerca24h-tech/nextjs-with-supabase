@@ -1,11 +1,18 @@
 'use client'
-import { useState, useEffect, useRef } from 'react'
+import { useState, useEffect } from 'react'
 import { createClient } from '@supabase/supabase-js'
 
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL as string,
   process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY as string
 )
+
+// 1 DE VERDAD, 2 DE PRUEBA
+const FARMACIAS = [
+  { id: 1, nombre: "Farmacia Iznájar Centro", telefono: "34634467345", real: true },
+  { id: 2, nombre: "Farmacia Iznájar Norte", telefono: null as string | null, real: false },
+  { id: 3, nombre: "Farmacia Iznájar Sur", telefono: null as string | null, real: false },
+];
 
 export default function Home() {
   const [pueblo, setPueblo] = useState('Iznájar')
@@ -15,178 +22,104 @@ export default function Home() {
   const [tandaActual, setTandaActual] = useState(1)
   const [farmaciasTanda, setFarmaciasTanda] = useState<any[]>([])
   const [estado, setEstado] = useState('idle')
-  const [farmaciaEncontrada, setFarmaciaEncontrada] = useState<any>(null)
-  const [chat, setChat] = useState<any[]>([])
-  const [numeroCopiado, setNumeroCopiado] = useState(false)
-  const chatRef = useRef<any>(null)
+  const [respuesta, setRespuesta] = useState('')
 
-  const [promptInstalar, setPromptInstalar] = useState<any>(null)
-  const [yaInstalada, setYaInstalada] = useState(false)
+  // Escucha la respuesta de la farmacia en tiempo real
   useEffect(() => {
-    if (window.matchMedia('(display-mode: standalone)').matches) setYaInstalada(true)
-    const handler = (e: any) => { e.preventDefault(); setPromptInstalar(e) }
-    window.addEventListener('beforeinstallprompt', handler)
-    return () => window.removeEventListener('beforeinstallprompt', handler)
-  }, [])
+    if (!consultaId) return
+    const channel = supabase
+      .channel('respuesta-farmacia')
+      .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'consultas', filter: `id=eq.${consultaId}` }, (payload: any) => {
+        const r = payload.new
+        if (r.estado === 'si_tengo') {
+          setRespuesta(`✅ ${r.farmacia} SÍ tiene ${r.producto}`)
+          setEstado('tiene')
+          if (Notification.permission === 'granted') {
+            new Notification(`1 farmacia tiene ${r.producto}`)
+          }
+        }
+        if (r.estado === 'no_tengo') {
+          setRespuesta(`❌ ${r.farmacia} NO tiene ${r.producto}`)
+          setEstado('no_tiene')
+        }
+      })
+      .subscribe()
+    return () => { supabase.removeChannel(channel) }
+  }, [consultaId])
 
-  const instalarApp = async () => {
-    if (yaInstalada) { alert('Ya la tienes instalada. NO la borres. Se actualiza sola. Solo cierra la app y vuelve a abrirla.'); return }
-    if (!promptInstalar) { alert('En Android: 3 puntos de Chrome > Instalar app / Añadir a pantalla de inicio. En iPhone: Compartir > Añadir a pantalla de inicio.'); return }
-    promptInstalar.prompt()
-    const res = await promptInstalar.userChoice
-    if (res && res.outcome === 'accepted') setYaInstalada(true)
-  }
+  // CLIENTE: PREGUNTA -> WhatsApp de verdad a 634467345
+  async function preguntar() {
+    if (!producto) { alert('Escribe el medicamento'); return }
+    if (Notification.permission !== 'granted') { await Notification.requestPermission() }
 
-  const [notificaciones, setNotificaciones] = useState(false)
-  useEffect(() => {
-    if ('Notification' in window && Notification.permission === 'granted') setNotificaciones(true)
-  }, [])
-  const activarNotificaciones = async () => {
-    const permiso = await Notification.requestPermission()
-    if (permiso === 'granted') setNotificaciones(true)
-  }
-  const avisar = (texto: string) => {
-    try {
-      if (Notification.permission === 'granted') {
-        new Notification('FarmaCerca 24h', { body: texto, icon: '/icon-512.png' })
-        if (navigator.vibrate) navigator.vibrate([200, 100, 200])
-      }
-    } catch (e) {}
-  }
-  const bajarChat = () => {
-    setTimeout(() => { if (chatRef.current) chatRef.current.scrollTop = chatRef.current.scrollHeight }, 100)
-  }
+    const farmaciaReal = FARMACIAS.find(f => f.real)
+    setFarmaciasTanda(FARMACIAS)
+    setEstado('enviado')
+    setRespuesta('')
 
-  const buscar = async () => {
-    if (!producto) return alert('Escribe un producto')
-    setEstado('buscando'); setNumeroCopiado(false)
-    setChat([
-      { de: 'tu', texto: 'Hola, busco ' + producto + ' en ' + pueblo + '. ¿Lo tenéis?', hora: new Date().toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'}) },
-      { de: 'sistema', texto: 'Enviando a 3 farmacias...', hora: '' }
-    ])
-    bajarChat()
-    const { data: consulta } = await supabase.from('consultas').insert({ producto, pueblo, estado: 'buscando' }).select().single()
-    if (!consulta) return
-    setConsultaId(consulta.id); setTandaActual(1)
-    const { data: farmacias } = await supabase.from('farmacias').select('*').ilike('pueblo', '%' + pueblo + '%').limit(30)
-    if (!farmacias || farmacias.length === 0) { setEstado('sin_stock'); return }
-    const tanda1 = farmacias.slice(0, 3); setFarmaciasTanda(tanda1)
-    for (const f of tanda1) { await supabase.from('consultas_farmacias').insert({ consulta_id: consulta.id, farmacia_id: f.id, tanda: 1, estado: 'enviado' }) }
-    localStorage.setItem('farmacias_busqueda', JSON.stringify(farmacias))
+    const { data } = await supabase.from('consultas').insert({
+      pueblo: pueblo,
+      producto: producto,
+      farmacia_id: farmaciaReal?.id,
+      estado: 'pendiente'
+    }).select().single()
+
+    if (data) setConsultaId(data.id)
+
+    const linkContestar = `${window.location.origin}/contestar?id=${data?.id}`
+    const mensaje = `Hola, busco ${producto} en ${pueblo}. ¿Lo tienes? Contesta aquí: ${linkContestar}`
+    window.open(`https://wa.me/34634467345?text=${encodeURIComponent(mensaje)}`, "_blank")
   }
 
-  const simularSi = async (farmacia: any) => {
-    setFarmaciaEncontrada(farmacia); setEstado('encontrado')
-    const hora = new Date().toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'})
-    setChat([...chat, { de: 'farmacia', nombre: farmacia.nombre, texto: 'Hola! Sí, lo tenemos en stock ✅ ¿Te lo reservo?', hora }])
-    avisar(farmacia.nombre + ': Sí, lo tenemos ✅ ¿Te lo reservo?')
-    bajarChat()
-    await supabase.from('consultas_farmacias').update({ estado: 'si_tiene' }).eq('consulta_id', consultaId).eq('farmacia_id', farmacia.id)
-    await supabase.from('consultas').update({ estado: 'encontrado', farmacia_encontrada_id: farmacia.id }).eq('id', consultaId)
-  }
-  const simularNoTanda = async () => {
-    const todas = JSON.parse(localStorage.getItem('farmacias_busqueda') || '[]')
-    const sig = tandaActual + 1; const inicio = (sig - 1) * 3; const siguientes = todas.slice(inicio, inicio + 3)
-    if (siguientes.length === 0) { setEstado('sin_stock'); return }
-    setTandaActual(sig); setFarmaciasTanda(siguientes)
-    setChat([...chat, { de: 'sistema', texto: 'Las 3 primeras dicen que NO. Pasando a tanda ' + sig, hora: '' }])
-    bajarChat()
-    for (const f of siguientes) { await supabase.from('consultas_farmacias').insert({ consulta_id: consultaId, farmacia_id: f.id, tanda: sig, estado: 'enviado' }) }
-  }
-
-  // --- ARREGLO PARA PC ---
-  const hablarDirecto = () => {
-    if (!farmaciaEncontrada) return
-    const tel = (farmaciaEncontrada.whatsapp || farmaciaEncontrada.telefono || '').toString().replace(/[^0-9]/g, '')
-    const texto = encodeURIComponent('Hola, soy de FarmaCerca 24h. Me han dicho que teneis ' + producto + '. Me lo podeis reservar?')
-    const esMovil = /Android|iPhone|iPad/i.test(navigator.userAgent)
-    if (esMovil) {
-      window.open('https://wa.me/' + tel + '?text=' + texto, '_blank')
-    } else {
-      // En PC abre WhatsApp Web, que si funciona en el navegador
-      window.open('https://web.whatsapp.com/send?phone=' + tel + '&text=' + texto, '_blank')
-    }
-  }
-  const llamar = () => {
-    if (!farmaciaEncontrada) return
-    window.location.href = 'tel:' + farmaciaEncontrada.telefono
-  }
-  const copiarNumero = async () => {
-    if (!farmaciaEncontrada) return
-    try { await navigator.clipboard.writeText(farmaciaEncontrada.telefono); setNumeroCopiado(true) }
-    catch (e) { prompt('Copia el numero:', farmaciaEncontrada.telefono) }
+  // FARMACIA: CONTESTA SÍ / NO
+  async function contestarFarmacia(tiene: boolean) {
+    if (!consultaId) return
+    await supabase.from('consultas').update({
+      estado: tiene ? 'si_tengo' : 'no_tengo',
+      farmacia: 'Farmacia Iznájar Centro'
+    }).eq('id', consultaId)
+    setRespuesta(tiene ? 'Has dicho SÍ LO TENGO' : 'Has dicho NO LO TENGO')
   }
 
   return (
-    <div className="max-w-md mx-auto p-4 min-h-screen bg-white">
-      <div className="text-center">
-        <img src="/icon-512.png" alt="FarmaCerca" className="w-20 h-20 mx-auto mb-2 object-contain" />
-        <h1 className="text-4xl font-bold text-green-600">FarmaCerca 24h</h1>
-        <p className="text-gray-500 text-lg mt-2">Preguntamos por ti a 3 farmacias a la vez</p>
-        <p className="text-xs text-gray-400 mt-1">Versión 2.4 - Se actualiza sola, no borres el icono</p>
-      </div>
+    <div style={{ maxWidth: 480, margin: '0 auto', padding: 16, fontFamily: 'sans-serif' }}>
+      <h1 style={{ color: '#16a34a' }}>FarmaCerca 24h</h1>
+      <p>Encuentra tu farmacia con stock cerca de ti</p>
 
-      <button onClick={instalarApp} className="w-full mt-4 bg-black text-white font-bold py-4 rounded-2xl text-lg">
-        📱 {yaInstalada ? 'Ya tienes la app instalada - Se actualiza sola' : 'Crear acceso directo en tu móvil'}
-      </button>
-      <p className="text-center text-gray-400 text-sm mt-1">No lo borres nunca. Cuando haga cambios, solo cierra la app y vuelve a abrirla.</p>
+      <label>Pueblo</label>
+      <input value={pueblo} onChange={e => setPueblo(e.target.value)} style={{ width: '100%', padding: 12, marginBottom: 12, borderRadius: 8, border: '1px solid #ccc' }} />
 
-      <button onClick={activarNotificaciones} className="w-full mt-3 bg-black text-white font-bold py-3 rounded-2xl text-base">
-        {notificaciones ? '🔔 Notificaciones ACTIVADAS' : '🔔 Activar notificaciones cuando contesten'}
+      <label>¿Qué medicamento buscas?</label>
+      <input value={producto} onChange={e => setProducto(e.target.value)} placeholder="Ej: Paracetamol" style={{ width: '100%', padding: 12, marginBottom: 12, borderRadius: 8, border: '1px solid #ccc' }} />
+
+      <button onClick={preguntar} style={{ width: '100%', padding: 14, background: '#16a34a', color: 'white', border: 'none', borderRadius: 10, fontWeight: 'bold' }}>
+        Preguntar a 3 farmacias
       </button>
 
-      <div className="bg-green-50 rounded-2xl p-3 mt-4 text-center text-green-700 font-bold text-lg">
-        Hoy: {contador.usadas} / 250 &nbsp; Quedan: {contador.quedan}
-      </div>
+      <p style={{ fontSize: 13, color: '#666' }}>Consultas usadas: {contador.usadas} - Quedan: {contador.quedan}</p>
 
-      <label className="block font-bold text-lg mt-5 mb-1">Pueblo</label>
-      <input value={pueblo} onChange={e => setPueblo(e.target.value)} className="w-full border rounded-2xl p-4 text-lg" />
-      <label className="block font-bold text-lg mt-4 mb-1">¿Qué necesitas?</label>
-      <textarea value={producto} onChange={e => setProducto(e.target.value)} placeholder="Ej: Paracetamol 500..." className="w-full border rounded-2xl p-4 text-lg h-24" />
-      <button onClick={buscar} className="w-full mt-4 bg-green-500 text-white font-bold py-4 rounded-2xl text-xl">Preguntar a 3 farmacias</button>
-
-      {chat.length > 0 && (
-        <div ref={chatRef} className="mt-4 bg-[#ECE5DD] rounded-2xl p-3 max-h-[400px] overflow-y-auto">
-          <div className="text-center text-xs bg-[#FFF3C4] rounded-lg py-1 px-2 mb-3">💬 Chat de FarmaCerca</div>
-          {chat.map((m: any, i: number) => (
-            <div key={i} className={'flex mb-2 ' + (m.de === 'tu' ? 'justify-end' : m.de === 'sistema' ? 'justify-center' : 'justify-start')}>
-              {m.de === 'sistema' ? (
-                <div className="bg-white text-xs text-gray-500 rounded-lg px-2 py-1">{m.texto}</div>
-              ) : (
-                <div className={'max-w-[80%] rounded-lg px-3 py-2 shadow text-[15px] ' + (m.de === 'tu' ? 'bg-[#DCF8C6] rounded-tr-none' : 'bg-white rounded-tl-none')}>
-                  {m.de === 'farmacia' && <div className="text-[13px] font-bold text-green-600">{m.nombre}</div>}
-                  <div>{m.texto}</div>
-                  <div className="text-right text-[11px] text-gray-400 mt-1">{m.hora} {m.de === 'tu' ? '✓✓' : ''}</div>
-                </div>
-              )}
-            </div>
+      {estado === 'enviado' && (
+        <div style={{ marginTop: 16, padding: 12, background: '#f0fdf4', borderRadius: 10 }}>
+          <p><b>Pregunta enviada a:</b></p>
+          {farmaciasTanda.map(f => (
+            <p key={f.id}>🏪 {f.nombre} {f.real ? '(REAL - 634467345)' : '(Prueba)'}</p>
           ))}
+          <p>Esperando respuesta de la farmacia...</p>
         </div>
       )}
 
-      {estado === 'buscando' && (
-        <div className="mt-3 bg-white border rounded-xl p-3">
-          <p className="font-bold text-sm mb-2">Tanda {tandaActual} - Preguntando a:</p>
-          {farmaciasTanda.map((f: any) => (
-            <div key={f.id} className="flex justify-between items-center border-b py-2 last:border-0">
-              <span className="text-sm">{f.nombre}</span>
-              <button onClick={() => simularSi(f)} className="bg-green-100 text-green-700 text-xs font-bold px-2 py-1 rounded">Simular SI</button>
-            </div>
-          ))}
-          <button onClick={simularNoTanda} className="w-full mt-3 bg-orange-100 text-orange-700 font-bold py-2 rounded-lg text-sm">Simular: Las 3 dicen NO - Siguiente tanda</button>
+      {respuesta && (
+        <div style={{ marginTop: 16, padding: 14, background: '#dcfce7', borderRadius: 10, fontWeight: 'bold' }}>
+          {respuesta}
         </div>
       )}
 
-      {estado === 'encontrado' && farmaciaEncontrada && (
-        <div className="mt-4 bg-green-50 border border-green-300 rounded-xl p-4 text-center">
-          <p className="font-bold text-green-800">Encontrado en {farmaciaEncontrada.nombre}</p>
-          <p className="text-sm text-gray-600 mt-1">Tel: {farmaciaEncontrada.telefono}</p>
-          <button onClick={hablarDirecto} className="w-full mt-3 bg-green-600 text-white font-bold py-3 rounded-xl">💬 Hablar directo con esa farmacia por chat</button>
-          <div className="flex gap-2 mt-2">
-            <button onClick={llamar} className="flex-1 bg-white border font-bold py-3 rounded-xl">📞 Llamar</button>
-            <button onClick={copiarNumero} className="flex-1 bg-white border font-bold py-3 rounded-xl">{numeroCopiado ? '✅ Copiado!' : '📋 Copiar número'}</button>
-          </div>
-          <p className="text-xs text-gray-400 mt-2">En PC se abre WhatsApp Web. Si no lo tienes vinculado, entra primero en web.whatsapp.com y escanea el código con tu móvil.</p>
+      {/* ESTOS 2 BOTONES SON LOS DE LA FARMACIA - los ve quien abre el enlace del WhatsApp */}
+      {consultaId && estado === 'enviado' && (
+        <div style={{ marginTop: 20, borderTop: '1px solid #eee', paddingTop: 16 }}>
+          <p><b>¿Eres la farmacia? Contesta:</b></p>
+          <button onClick={() => contestarFarmacia(true)} style={{ width: '100%', padding: 12, background: '#16a34a', color: 'white', border: 'none', borderRadius: 10, marginBottom: 8 }}>SÍ LO TENGO</button>
+          <button onClick={() => contestarFarmacia(false)} style={{ width: '100%', padding: 12, background: '#dc2626', color: 'white', border: 'none', borderRadius: 10 }}>NO LO TENGO</button>
         </div>
       )}
     </div>
