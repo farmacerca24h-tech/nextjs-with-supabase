@@ -16,16 +16,13 @@ export default function Home() {
   const [farmaciasTanda, setFarmaciasTanda] = useState<any[]>([])
   const [estado, setEstado] = useState('idle')
   const [farmaciaEncontrada, setFarmaciaEncontrada] = useState<any>(null)
-  const [mensaje, setMensaje] = useState('')
   const [chat, setChat] = useState<any[]>([])
+  const [numeroCopiado, setNumeroCopiado] = useState(false)
   const chatRef = useRef<any>(null)
 
-  // --- INSTALAR / ACCESO DIRECTO - SIEMPRE VISIBLE ---
   const [promptInstalar, setPromptInstalar] = useState<any>(null)
   const [yaInstalada, setYaInstalada] = useState(false)
-
   useEffect(() => {
-    // Detecta si ya está instalada como app
     if (window.matchMedia('(display-mode: standalone)').matches) setYaInstalada(true)
     const handler = (e: any) => { e.preventDefault(); setPromptInstalar(e) }
     window.addEventListener('beforeinstallprompt', handler)
@@ -33,31 +30,21 @@ export default function Home() {
   }, [])
 
   const instalarApp = async () => {
-    if (yaInstalada) {
-      alert('Ya la tienes instalada. No tienes que borrarla nunca, se actualiza sola cuando hago cambios. Solo cierra la app y vuelve a abrirla.')
-      return
-    }
-    if (!promptInstalar) {
-      alert('En Android: 3 puntos de Chrome > Instalar app / Añadir a pantalla de inicio. En iPhone: Compartir > Añadir a pantalla de inicio.')
-      return
-    }
+    if (yaInstalada) { alert('Ya la tienes instalada. NO la borres. Se actualiza sola. Solo cierra la app y vuelve a abrirla.'); return }
+    if (!promptInstalar) { alert('En Android: 3 puntos de Chrome > Instalar app / Añadir a pantalla de inicio. En iPhone: Compartir > Añadir a pantalla de inicio.'); return }
     promptInstalar.prompt()
     const res = await promptInstalar.userChoice
     if (res && res.outcome === 'accepted') setYaInstalada(true)
   }
 
-  // --- NOTIFICACIONES ---
   const [notificaciones, setNotificaciones] = useState(false)
   useEffect(() => {
     if ('Notification' in window && Notification.permission === 'granted') setNotificaciones(true)
   }, [])
-
   const activarNotificaciones = async () => {
     const permiso = await Notification.requestPermission()
     if (permiso === 'granted') setNotificaciones(true)
-    else alert('Dale a Permitir cuando te salga la ventanita arriba.')
   }
-
   const avisar = (texto: string) => {
     try {
       if (Notification.permission === 'granted') {
@@ -66,24 +53,13 @@ export default function Home() {
       }
     } catch (e) {}
   }
-
   const bajarChat = () => {
     setTimeout(() => { if (chatRef.current) chatRef.current.scrollTop = chatRef.current.scrollHeight }, 100)
   }
 
-  useEffect(() => {
-    const cargar = async () => {
-      const hoy = new Date(); hoy.setHours(0,0,0,0)
-      const { data } = await supabase.from('consultas_farmacias').select('farmacia_id').gte('created_at', hoy.toISOString())
-      const unicas = new Set((data || []).map((d: any) => d.farmacia_id)).size
-      if (unicas > 0) setContador({ usadas: unicas, quedan: 250 - unicas })
-    }
-    cargar()
-  }, [estado])
-
   const buscar = async () => {
     if (!producto) return alert('Escribe un producto')
-    setEstado('buscando'); setMensaje('Preguntando a las 3 mas cercanas... Tanda 1')
+    setEstado('buscando'); setNumeroCopiado(false)
     setChat([
       { de: 'tu', texto: 'Hola, busco ' + producto + ' en ' + pueblo + '. ¿Lo tenéis?', hora: new Date().toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'}) },
       { de: 'sistema', texto: 'Enviando a 3 farmacias...', hora: '' }
@@ -102,29 +78,43 @@ export default function Home() {
   const simularSi = async (farmacia: any) => {
     setFarmaciaEncontrada(farmacia); setEstado('encontrado')
     const hora = new Date().toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'})
-    setChat([...chat, { de: 'farmacia', nombre: farmacia.nombre, texto: 'Hola! Sí, lo tenemos en stock ✅ ¿Te lo reservo?', hora: hora }])
-    setMensaje(farmacia.nombre + ' SI lo tiene')
+    setChat([...chat, { de: 'farmacia', nombre: farmacia.nombre, texto: 'Hola! Sí, lo tenemos en stock ✅ ¿Te lo reservo?', hora }])
     avisar(farmacia.nombre + ': Sí, lo tenemos ✅ ¿Te lo reservo?')
     bajarChat()
     await supabase.from('consultas_farmacias').update({ estado: 'si_tiene' }).eq('consulta_id', consultaId).eq('farmacia_id', farmacia.id)
     await supabase.from('consultas').update({ estado: 'encontrado', farmacia_encontrada_id: farmacia.id }).eq('id', consultaId)
   }
-
   const simularNoTanda = async () => {
     const todas = JSON.parse(localStorage.getItem('farmacias_busqueda') || '[]')
     const sig = tandaActual + 1; const inicio = (sig - 1) * 3; const siguientes = todas.slice(inicio, inicio + 3)
-    if (siguientes.length === 0) { setEstado('sin_stock'); setMensaje('Ninguna farmacia lo tiene.'); return }
+    if (siguientes.length === 0) { setEstado('sin_stock'); return }
     setTandaActual(sig); setFarmaciasTanda(siguientes)
-    setChat([...chat, { de: 'sistema', texto: 'Las 3 primeras dicen que NO. Pasando a la siguiente tanda ' + sig, hora: '' }])
+    setChat([...chat, { de: 'sistema', texto: 'Las 3 primeras dicen que NO. Pasando a tanda ' + sig, hora: '' }])
     bajarChat()
     for (const f of siguientes) { await supabase.from('consultas_farmacias').insert({ consulta_id: consultaId, farmacia_id: f.id, tanda: sig, estado: 'enviado' }) }
   }
 
+  // --- ARREGLO PARA PC ---
   const hablarDirecto = () => {
     if (!farmaciaEncontrada) return
-    const tel = farmaciaEncontrada.whatsapp || farmaciaEncontrada.telefono
+    const tel = (farmaciaEncontrada.whatsapp || farmaciaEncontrada.telefono || '').toString().replace(/[^0-9]/g, '')
     const texto = encodeURIComponent('Hola, soy de FarmaCerca 24h. Me han dicho que teneis ' + producto + '. Me lo podeis reservar?')
-    window.open('https://wa.me/' + tel + '?text=' + texto, '_blank')
+    const esMovil = /Android|iPhone|iPad/i.test(navigator.userAgent)
+    if (esMovil) {
+      window.open('https://wa.me/' + tel + '?text=' + texto, '_blank')
+    } else {
+      // En PC abre WhatsApp Web, que si funciona en el navegador
+      window.open('https://web.whatsapp.com/send?phone=' + tel + '&text=' + texto, '_blank')
+    }
+  }
+  const llamar = () => {
+    if (!farmaciaEncontrada) return
+    window.location.href = 'tel:' + farmaciaEncontrada.telefono
+  }
+  const copiarNumero = async () => {
+    if (!farmaciaEncontrada) return
+    try { await navigator.clipboard.writeText(farmaciaEncontrada.telefono); setNumeroCopiado(true) }
+    catch (e) { prompt('Copia el numero:', farmaciaEncontrada.telefono) }
   }
 
   return (
@@ -133,13 +123,13 @@ export default function Home() {
         <img src="/icon-512.png" alt="FarmaCerca" className="w-20 h-20 mx-auto mb-2 object-contain" />
         <h1 className="text-4xl font-bold text-green-600">FarmaCerca 24h</h1>
         <p className="text-gray-500 text-lg mt-2">Preguntamos por ti a 3 farmacias a la vez</p>
+        <p className="text-xs text-gray-400 mt-1">Versión 2.4 - Se actualiza sola, no borres el icono</p>
       </div>
 
-      {/* BOTON DESCARGAR - AHORA SIEMPRE SALE */}
       <button onClick={instalarApp} className="w-full mt-4 bg-black text-white font-bold py-4 rounded-2xl text-lg">
         📱 {yaInstalada ? 'Ya tienes la app instalada - Se actualiza sola' : 'Crear acceso directo en tu móvil'}
       </button>
-      <p className="text-center text-gray-400 text-sm mt-1">1 toque y te queda el icono en pantalla como una app. Cuando haga cambios, no borres nada, solo cierra y abre de nuevo.</p>
+      <p className="text-center text-gray-400 text-sm mt-1">No lo borres nunca. Cuando haga cambios, solo cierra la app y vuelve a abrirla.</p>
 
       <button onClick={activarNotificaciones} className="w-full mt-3 bg-black text-white font-bold py-3 rounded-2xl text-base">
         {notificaciones ? '🔔 Notificaciones ACTIVADAS' : '🔔 Activar notificaciones cuando contesten'}
@@ -157,7 +147,7 @@ export default function Home() {
 
       {chat.length > 0 && (
         <div ref={chatRef} className="mt-4 bg-[#ECE5DD] rounded-2xl p-3 max-h-[400px] overflow-y-auto">
-          <div className="text-center text-xs bg-[#FFF3C4] rounded-lg py-1 px-2 mb-3">🔒 Los mensajes están cifrados de extremo a extremo</div>
+          <div className="text-center text-xs bg-[#FFF3C4] rounded-lg py-1 px-2 mb-3">💬 Chat de FarmaCerca</div>
           {chat.map((m: any, i: number) => (
             <div key={i} className={'flex mb-2 ' + (m.de === 'tu' ? 'justify-end' : m.de === 'sistema' ? 'justify-center' : 'justify-start')}>
               {m.de === 'sistema' ? (
@@ -190,7 +180,13 @@ export default function Home() {
       {estado === 'encontrado' && farmaciaEncontrada && (
         <div className="mt-4 bg-green-50 border border-green-300 rounded-xl p-4 text-center">
           <p className="font-bold text-green-800">Encontrado en {farmaciaEncontrada.nombre}</p>
-          <button onClick={hablarDirecto} className="w-full mt-3 bg-green-600 text-white font-bold py-3 rounded-xl">Hablar directo con esa farmacia en WhatsApp</button>
+          <p className="text-sm text-gray-600 mt-1">Tel: {farmaciaEncontrada.telefono}</p>
+          <button onClick={hablarDirecto} className="w-full mt-3 bg-green-600 text-white font-bold py-3 rounded-xl">💬 Hablar directo con esa farmacia por chat</button>
+          <div className="flex gap-2 mt-2">
+            <button onClick={llamar} className="flex-1 bg-white border font-bold py-3 rounded-xl">📞 Llamar</button>
+            <button onClick={copiarNumero} className="flex-1 bg-white border font-bold py-3 rounded-xl">{numeroCopiado ? '✅ Copiado!' : '📋 Copiar número'}</button>
+          </div>
+          <p className="text-xs text-gray-400 mt-2">En PC se abre WhatsApp Web. Si no lo tienes vinculado, entra primero en web.whatsapp.com y escanea el código con tu móvil.</p>
         </div>
       )}
     </div>
