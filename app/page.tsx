@@ -1,464 +1,66 @@
 "use client";
 import { useState } from "react";
 
-// MODO PRUEBA - TODAS con el mismo número
-const TELEFONO_PRUEBA = "34634467345"; // 634467345
-// Formato: [Nombre, Localidad, Dirección]
-const FARMACIAS: string[][] = [
-["AGUILAR HURTADO FELISA - HURTADO AGUILAR INMACULADA","Málaga","C/. TOMÁS HEREDIA, 23 - 29001"],
-["LEDRO CARABAÑO BLANCA","Málaga","PASEO MARÍTIMO ANTONIO MACHADO, 60 - 29002"],
-["MUÑOZ ESTRADA CARMEN","Málaga","AVDA. SOR TERESA PRAT, 54 - 29003"],
-["CASTRO NOGALES MANUEL DE","Málaga","CARRIL DEL PATO, 21 EDIFICIO LAS PIRAMIDES - 29004"],
-["FAJARDO PAREDES PALOMA CRISTINA","Málaga","C/. PICO DE LAS PALOMAS, 14-16 - 29004"],
-["RICO NESTARES MARIA CRISTINA","Málaga","PUERTA DEL MAR NUM. 5 Y 7 - 29005"],
-["ABAURRE LABRADOR MARÍA STELA","Málaga","AVDA. ORTEGA Y GASSET, 90 - 29006"],
-["JURADO RUIZ ELVIRA PATRICIA - RUIZ LOBATO Mª ÁNGELES","Málaga","C/. HORACIO LENGO, 19 - 29006"],
-["GARCÍA DELGADO PILAR","Málaga","AV. JOSE ORTEGA Y GASSET, 109 - 29006"],
-["CHACÓN AGUILAR ISABEL","Málaga","CAPITÁN HUELIN, 40 - 29007"],
-["RODRÍGUEZ SIERRAS FRANCISCO JOSÉ","Málaga","C/. DON JUAN DE AUSTRIA, 22 - 29009"],
-["ARTACHO REINOSO Mª PRESENTACION Y Mª ELENA","Málaga","C/. NAVARRO LEDESMA Nº 156 (ESQ. AURORA ALBORNOZ) - 29010"],
-["RUBIO RUIZ EMILIO - GONZALEZ BALBOA ÁGUEDA","Málaga","C/ ORSON WELLES, 8 - 29010"],
-["ZAMORANO TORO MARÍA INMACULADA","Málaga","C/. POETA XIMÉNEZ MOLINA, 1 BDA. SAN MARTIN - 29010"],
-["SÁNCHEZ COBOS CONCEPCIÓN","Málaga","AV. JOSÉ RIBERA 16, COLONIA STA. INES - 29010"],
-["GALLARDO DE LA CUEVA MATILDE","Málaga","AVENIDA CARLOS HAYA, 105 - 29010"],
-["ROMERO SÁNCHEZ JAVIER MANUEL","Málaga","CAMINO DE SUAREZ, 33 - 29010"],
-["MUÑOZ FERNÁNDEZ ELISA","Málaga","C/. MESONERO ROMANOS, 2 - 29010"],
-["RICO NESTARES MARIA CONCEPCIÓN","Málaga","C/. ANTÍGONA Nº 1 LCAL. 18 Y 19 - 29010"],
-["CAPITÁN CAÑADAS IGNACIO PLAZA DE LOS VERDIALES, 6","Málaga","CAPITÁN CAÑADAS IGNACIO PLAZA DE LOS VERDIALES, 6 - 29011"],
-["AVILA SAEZ MARIA TERESA","Málaga","C/. MARTINEZ BARRIONUEVO Nº 2 - 29013"],
-["TUDELA VON SCHMITERLOW JAVIER","Málaga","C/. EMILIO THUILLER, 68 - 29014"],
-["MOLINA SÁNCHEZ Mª JOSEFA - MOLIZ MOLINA Mª JOSEFA","Málaga","AVENIDA DE PRIES, 2 - 29016"],
-["JIMENEZ SOTO MARTA","Málaga","AV. JUAN SEBASTIÁN ELCANO Nº 2 - 29017"],
-["VELASCO LASARTE GUILLERMO","Málaga","AV. JUAN SEBASTIAN ELCANO, 127 - 29017"],
-["ESPINOSA GONZALEZ LUIS Y MARTA","Málaga","C/. VILLAFUERTE NUM. 35 - 29017"],
-["HERNANDEZ RAMIREZ MANUEL","Málaga","C/. ORTEGA MUNILLA NUM. 13 - 29017"],
-["MERIDA AGUILERA IRENE CARLOTA","Málaga","AVDA. JUAN SEBASTIAN ELCANO, 145 - 29017"],
-["VILLAFRANCA DE PORRAS Mª CARMEN - RUIZ VILLAFRANCA Mª CARMEN","Málaga","CARRETERA DE ALMERIA, 62 - 29018"],
-["CASTRO NOGALES Mª DEL CARMEN DE","Málaga","AV. HERNÁN NÚÑEZ DE TOLEDO Nº 2 - 29018"],
-["MUÑOZ JIMÉNEZ JOSÉ LUIS","Coín","C/. BARTOLOMÉ ABELENDA, 57 - 29100"],
-["GARCÍA VÁZQUEZ RAFAEL - GARCÍA MALDONADO RAFAEL","Coín","C/. FERIA, 6 - 29100"],
-["BARRIS BLUNDELL DAMIÁN","Coín","AVENIDA REINA SOFÍA EDIFICIO LAS PALMERAS I - 29100"],
-["CORDOBES MONTES MARIA VICTORIA","Guaro","AV. ANDALUCIA Nº 67 - 29108"],
-["MARTÍNEZ SASTRE FELICIDAD ARACELI","Alhaurín el Grande","CAMINO DE MÁLAGA, 105 - 29120"],
-["RECIO LLAMAS ANTONIO","Alhaurín de la Torre","AVENIDA DEL MAR, 5 - URB. RETAMAR 1ª FASE - 29130"],
-["OLIVA PONCE MARÍA JOSÉ","Alhaurín de la Torre","C/ CIGÜEÑA, 51 - URB. EL ROMERAL - 29130"],
-["CANTERO ANGULO JUAN JOSÉ","Alhaurín de la Torre","URBANIZACIÓN EL ALAMILLO, LOCAL 2 - 29130"],
-["RODULFO FLORES IRENE A. - RODULFO FLORES JUAN DIEGO","Málaga","C/ LOPE DE RUEDA, 175 - 29190"],
-["RAYA GARCIA SUSANA","Comares","C/ ALCALDE BAEZ RANEA NUM. 6 - 29195"],
-["PÉREZ FALCON JOSE","Antequera","C/. CAMPILLO BAJO S/N. - 29200"],
-["MOLINA PÉREZ MARÍA JOSÉ","Villanueva de Algaidas","C/ GRANADA, 7 - 29310"],
-["LORA SERRANO SOFIA","Campillos","AV. DE LA CONSTITUCION ED. LOS RUEDOS - 29320"],
-["GONZÁLEZ CARO Mª CARMEN","Campillos","C/. ALTA, 30 - 29320"],
-["PALACIO LÓPEZ JUAN MANUEL","Jimera de Líbar","C/. SAN BARTOLOMÉ, 3 - 29392"],
-["SANTOS ZAFRA FERNANDA","Ronda","PLAZA DE ESPAÑA, 5 - 29400"],
-["ORDÓÑEZ JIMÉNEZ MANUEL","Ronda","C/. SEVILLA, 34-36 - 29400"],
-["LOPEZ JIMENEZ Mª NIEVES - ARIAS PEREZ JULIO","Yunquera","C/ ALFAGUARA NUM. 8. - 29410"],
-["MEDINA GONZALEZ J MANUEL","Montecorto","AVDA DE LA CONSTITUCION NUM 1 - 29430"],
-["CUADRADO BORREGO LEOPOLDO","Pujerra","C/. MARÍA MATEO S/N - 29450"],
-["SANTOS DEL RÍO JUAN MIGUEL","Faraján","C/ CORCHUELO, 19 - 29461"],
-["TABUYO ENRÍQUEZ PILAR","Júzcar","C/ CARAILA, 5 - 29462"],
-["SANCHEZ ASTORGA MANUEL","Benadalid","C/ PUENTE Nº 1 - 29493"],
-["FLORIDO ALBA FRANCISCO JAVIER","Carratraca","C/. ANTONIO RIOBOO, 20 - 29551"],
-["TERNERO CARO MACARENA","Marbella","AV. ANTONIO BELÓN, 3 ESQ. C/ PADRE JOSÉ VERA - 29600"],
-["MARCO PARRAS TOMÁS","Marbella","C/. PINSAPO, 8 - 29600"],
-["JIMÉNEZ GÓMEZ FRANCISCO JAVIER - JIMENEZ RODRIGUEZ FRANCISCO JAVIER","Marbella","PLAZA PUENTE DE MALAGA - 29600"],
-["MINGORANCE GUTIÉRREZ ANTONIO","Marbella","AVDA. RICARDO SORIANO, 44 - 29600"],
-["GARCÍA LÓPEZ ANTONIO CÉSAR","Torremolinos","C/ DOCTORES UBALDO DELGADO, 4 - 29620"],
-["HERMOSO MESA GUADALUPE","Torremolinos","C/ BELICE, 1 - 29620"],
-["BUHIGAS AGUILERA MARTA","Torremolinos","C/ MADAME BOVARY Nº 25 EL PINILLO - 29620"],
-["MARTÍN JIMÉNEZ MARÍA TERESA","Torremolinos","C/. SALVADOR ALLENDE, 27 - 29620"],
-["ROMERO MUÑOZ JUAN MANUEL","Benalmádena","AVDA. JUAN LUIS PERALTA, 4 - 29630"],
-["HUELIN BEJARANO MARÍA DOLORES","Benalmádena Costa","AVENIDA EUROPA - ED.CASINOMAR LOCAL 14 - 29630"],
-["FERNÁNDEZ ÁLVAREZ PABLO","Benalmádena Costa","C/ SAGITARIO, 3 RES. GAMONAL LOCAL 7 - 29630"],
-["RUBIO RUBIO VICTORIA EUGENIA","Arroyo de la Miel","AVENIDA DE LA CONSTITUCIÓN, 24 RES. ALMUDENA - 29631"],
-["REVERTE BOSQUET ANTONIO","Arroyo de la Miel","C/ LOPE DE VEGA, 62 - 29631"],
-["RODRÍGUEZ ZARZUELO Mª CARMEN","Arroyo de la Miel","AVENIDA CIUDAD DE MELILLA CONJ.PLAZA MAYOR 20- 21 - 29631"],
-["FERNANDEZ PARDO LUIS ENRIQUE","Arroyo de la Miel","AV. MARE NOSTRUM Nº 3 URB. BELLAVISTA - 29631"],
-["GÓMEZ MONTERO LUCÍA","Arroyo de la Miel","JARDINES ALHAMBRA ED. 2, ESQ. C/ ALHAMBRA - 29631"],
-["LEON BURGOS MARIA DOLORES","Fuengirola","CAMINO DE COIN NUM. 49 - 29640"],
-["QUERO ARCA Mª INMACULADA","Fuengirola","C/ ANTONIO CHENEL ANTOÑETE, 13 - 29640"],
-["DOMÍNGUEZ LÓPEZ JOSÉ MANUEL","Fuengirola","C/ TORREMOLINOS, 1 ED. SALINAS HOMES LOCAL 1 - 29640"],
-["BALBUENA RUIZ JOSÉ BERNARDO","Mijas Costa","CAMINO CAMPANALES S/N, ESQ.C/. ANCHA - 29650"],
-["DATO ANIORTE MARIA DOLORES","Mijas","SAN BARTOLOME, 7 (LAS LAGUNAS) - 29650"],
-["JIMÉNEZ BOOTELLO ELVIRA LETICIA","Mijas","PLAZA DE LA CONSTITUCIÓN, 13 - 29650"],
-["NIEVES MORENO ANTONIO","Mijas","AVDA. MÉXICO Nº 12 - EDIF. MONTEMIJAS BQ. B LOCAL. 3 - 29650"],
-["MIRÓN COMAS OLGA - ALBA MOSCOSO JOAQUÍN","Mijas","AVENIDA DE MÉJICO, 37 - 29650"],
-["MENA ESCOBAR ROSARIO","Mijas","C/ SAN VALENTÍN, 11 - EDIFICIO PIRAGUA - 29651"],
-["SEGURA BELMONTE MARÍA DEL CARMEN","Mijas","C/. LA UNIÓN, 17 (LAS LAGUNAS) - 29651"],
-["DIEZ RODRIGUEZ MONICA","San Pedro Alcántara","AV. DE LA CONSTITUCION Nº 7 - 29670"],
-["GUIRADO SÁNCHEZ ENRIQUE","Vélez-Málaga","C/ LOPE DE VEGA, 5 - 29700"],
-["SEOANE AMADO MARÍA DE LA SIERRA","Vélez-Málaga","C/ MOLINO DE VELASCO, 7 - 29700"],
-["TÉLLEZ GÁMEZ JOSÉ FRANCISCO","Almáchar","PASEO DE LA AXARQUIA, 9 - 29718"],
-["DIAZ VERDEJO ROSA MARIA","Almayate","MAESTRANZA, 17 (CONJ. EL LLANO) - 29749"],
-["FERNÁNDEZ CASTRO CELESTINO IGNACIO","Torrox","C/. BALTASAR MÁRQUEZ, 2 - 29770"],
-["PALLARÉS VALDÉS ISABEL","Nerja","C/ ANTONIO FERRANDIS, 3 LOCAL 2 - 29780"],
-["GONZÁLEZ ESPINOSA MARÍA JOSÉ","Benajarafe","CARRETERA MÁLAGA-ALMERÍA, 124 - 29790"],
-["Perez Garcia","Antequera","Calle Peñuelas, 13 - 29200"],
-["Rosa María Maeso Ortega Rosario María Luque Moreno","Arroyo de la Miel","Avenida Cerro del Viento, 1 - 29631"],
-["Francisco Avila Cortes","Rincón de la Victoria","Calle Geranio, 10 BAJO - 29730"],
-["Dr. Smoke","Benalmádena Costa","Avenida Antonio Machado, 18 - 29630"],
-["Gestoría Jiménez Benk","Granada","Avenida Cervantes, 4 - "],
-["Farmacia Norte","Marbella","Avenida Pablo Ruiz Picasso, 66 - 29601"],
-["Beesmoke Spain Sl","Benalmádena Costa","Urbanización Pueblo Evita, S/N - 29630"],
-["Caballe Codinachs","Sant Fruitós de Bages","Calle Joan xxiii, 37 - "],
-["Anabel G Bueno Psicóloga En Badalona","Santa Coloma de Gramenet","Carrer del Progrés, 28 - "],
-["Jonas Cabeza Montero","Santa Anna","Carrer Ponent, 8 k1 - "],
-["Farmacia María Belén Hernández Carmona","Estepona","Calle Josefina Samper, S/N - 29680"],
-["Farmacia Paredes","Málaga","Calle Frigiliana, 35 - 29003"],
-["Beesmoke Spain Sl","Benalmádena Costa","Urbanización Pueblo Evita, S/N 0 - 29630"],
-["Benjamin Mezcua Guzman Sl","Málaga","Calle Marqués de Larios, 38 - 29005"],
-["Bar Restaurante El Rincón De Encarni","Nerja","Calle Huertos (Edificio Coronado), S/N Bajo Local - 29780"],
-["Farmacia Estrella Del Mar","Benalmádena Costa","Avenida Estrella del Mar, 18 BENALMADENA, MALAGA - 29630"],
-["Farmacia Costa Lago","Torremolinos","Calle Ob. Juan Alonso, 3 TORREMOLINOS, MALAGA - 29620"],
-["Farmacia Santa María","Rincón de la Victoria","Avenida de Málaga, 36 BAJO;ED. SANTAMARIA - 29720"],
-["Pharmafirmas Sl","Torre de Benagalbón","Calle Ceuta, 8 BAJO - 29738"],
-["Polo Pharma","Alhaurín de la Torre","Poligono Industrial Moraga, 27 27 27 , NAVE 27 - 29130"],
-["Mercedes Manrique Ortiz","Torremolinos","Calle Casablanca, 11 BAJO;FARMACIA - 29620"],
-["Farmacia Soliva Teatinos 365 Días","Málaga","Avenida Escritor Antonio Soler, 19 - 29010"],
-["Farmacia Encarnación Carrión","Málaga","Calle Virgen de la Fuensanta, 17 - 29006"],
-["Farmacia Amiga Puerto De La Torre","Málaga","Calle Pirita, 12 MALAGA, MALAGA - 29190"],
-["Farmacia Martinez Y Nieto S.C.","Málaga","Calle La Defensa, 15 - 29011"],
-["MARÍA CONCEPCIÓN RICO NESTARES","Málaga","Antígona, 1 BAJO - 29010"],
-["Jacinto Berdaguer Camacho","Coín","Cortijo Frailes, S/N BAJO - 29100"],
-["Novo","Málaga","Calle Zeus, S/N BAJO(FINCA INDETERMINADA - 29190"],
-["Natuvital Medicina Oriental Sl","Málaga","Calle Navarro Ledesma, 119 - 29010"],
-["Farmacia Mª Teresa Guerrero","Cuevas del Becerro","Avenida de las Escuelas BAJO - 29470"],
-["Alcarazo Frama S.L.","Almargen","Calle Cortina Estación, 42 BAJO - 29330"],
-["El Albero Farmacia","Las Lagunas","Calle San Valentín, 11 BAJO;LOC 3;EL ALBERO - 29651"],
-["Farmacia Mata","Málaga","Calle Marqués de Larios, 8 - 29005"],
-["Farmacia Del Sagrario","Málaga","Calle Santa María, 29 - 29015"],
-["Farmacia Central","Torre del Mar","Mar, 24 BAJO - 29740"],
-["La Farmacia De La Plaza","Pizarra","Pl. Ayuntamiento, 7 - 29560"],
-["Farmacia Hervás C.B.","Málaga","Avenida Guindos, 29 - 29004"],
-["Farmacia Fuente Olletas","Málaga","Calle Cristo de la Epidemia, 99 (DISTRITO CTRO) - 29013"],
-["Farmacia Vazquez Rubio","Málaga","Calle Marqués de Cádiz, 60 - 29013"],
-["ANA GONZÁLEZ RODRÍGUEZ","Málaga","Juan Montes Hoyo, 20 BAJO(LOCAL) - 29014"],
-["Farmacia Pinosol","Málaga","Calle San Lázaro, 1 - 29012"],
-["Encarnación de la Linde Palomino","Málaga","Blas de Lezo, 25 BAJO - 29011"],
-["Loli","Málaga","Calle Almería, 44 - 29017"],
-["Farmacia Nueva Gamarra","Málaga","Calle RIVAS FERNÁNDEZ, 16 Bailén-Miraflores - 29010"],
-["FARMACIA TORRE DEL CARMEN","Málaga","Canales, 2 BAJO - 29002"],
-["Farmacia Gallego Garnica","Málaga","Avenida Paloma, 38 BAJO - 29003"],
-["Farmacia María José Del Río Pérez-Piaya","Málaga","Avenida Paloma, 8 BAJO - 29003"],
-["LEANDRO MARTÍNEZ RUIZ E HIJOS S.L.","La Cala del Moral","Calle Juan Varela, 2 BAJO(LA YUCA URB SERRAMAR) - 29720"],
-["Farmacia Garvi","Torremolinos","Calle Cuba, 10 - 29620"],
-["Maqueserv S.L.","Torremolinos","Pje. Carlos Cano (Z. Los Álamos), 1 -B;BL 5 - 29620"],
-["Peinado Pharmacy La Carihuela","Torremolinos","Calle Arenas, 11 TORREMOLINOS, MALAGA - 29620"],
-["Farmacia Montemar Alto C.B.","Torremolinos","Decano Miguel Marengo, 7 BAJO - 29620"],
-["Farmacia Entrepinos","Torremolinos","Calle Miguel Fernández Alcauza, 2 - 29620"],
-["Farmacia Lda. M. Ángeles Ayala - Los Palacios","Torremolinos","Calle Río Bergantes, 25 LOC 1 (ED RONDA) - 29620"],
-["Rosa Maria Blanco Bautista","Torremolinos","Rafael Quintana Rosado, 45 BAJO(TIENDA FARMACIA) - 29620"],
-["María Teresa Martín Giménez","Torremolinos","Salvador Allende, 27 BAJO - 29620"],
-["MARÍA ARANZAZU QUECUTY SINISTERRA","Torremolinos","Calle Niña de Oro, 17 BAJO;FARMACIA - 29620"],
-["Farmacia Próxima Portada Alta","Málaga","Calle Castilla, S/N 0 - 29007"],
-["Antonio Monedero Moya","Moclinejo","Castillo, 9 Bajo(Farmacia) - 29738"],
-["Farmacia Laza García","Rincón de la Victoria","Avenida del Mediterráneo, 93 BAJO - 29730"],
-["Eduardo Pineda Romero","Torre de Benagalbón","Avenida de la Torre, 39 BAJO(LOCAL) - 29738"],
-["ABAURRE REINA","Rincón de la Victoria","Avenida Mediterráneo, 143 LOCAL - 29730"],
-["Farmacia Málaga 15","Alhaurín de la Torre","Calle Málaga, 15 - 29130"],
-["GUSTAVO CARO-ACCINO MENÉNDEZ","Alhaurín de la Torre","Av. Reyes Católicos, 89 BAJO - 29130"],
-["Farmacia Ldo. Ángel Pérez","Alhaurín de la Torre","Av. San Sebastián, 28 BAJO(LOCAL 28 FARMACIA) - 29130"],
-["Farmacia Capellanía","Alhaurín de la Torre","Calle Andrés Segovia, S/N - 29130"],
-["Juan Francisco Garcia Quero","Alhaurín de la Torre","Calle Campillos, 303 BAJO - 29130"],
-["Maria Dolores Casamayor Delgado Farmacia","Estación de Cártama","Av. Severo Ochoa, 9 BAJO - 29580"],
-["ANTONIA MARIA CARRION SERRANO","Estación de Cártama","Sorolla, 7 BAJO - 29580"],
-["Farmacia Store Málaga","Alhaurín el Grande","Plaza Mayor, 6 LOCAL - 29570"],
-["Farmacia Canales Garcia","Campanillas","Calle José Calderón, 48 - 29590"],
-["FARMACIA COSTA DEL SOL","Benalmádena Costa","Avenida Antonio Machado, 12 BENALMADENA, MALAGA - 29630"],
-["PACHECO CASTILLO","Benalmádena Costa","Ctra. Cádiz, KM. 227 EDIF. MAITE I - 29630"],
-["Farmacia Tivoli","Arroyo de la Miel","Avenida Cerro del Viento, 1 - 29631"],
-["NAIMA BENALI LAHYANI","Benalmádena Costa","Avenida Federico García Lorca, S/N -BL 1;BAJO(JARDINES DEL GA - 29630"],
-["Antonio Raigon Martinez De Tejada","Ardales","Plaza San Isidro, 29 BAJO - 29550"],
-["Farmacia Los Lirios","Las Lagunas","Avenida Lirios, 39 - 29651"],
-["Farmacia Internacional Fuengirola C.B.","Fuengirola","Avenida Acapulco, 9 BAJO;ED.DOÑANA - 29640"],
-["Pinturas Y Maquinarias Roquetas S L","Fuengirola","Camino Coín, 31 - 29640"],
-["Farmacia Internacional Fuengirola","Fuengirola","Avenida Acapulco, 9 - 29640"],
-["Pharmacy Pyramids. Pharmacy Galán Cavadas S.C.","Fuengirola","Calle Europa, 2 FUENGIROLA, MALAGA - 29640"],
-["José Antonio Nestares García-Trevijano","Fuengirola","Avenida Condes de San Isidro, 3 BAJO - 29640"],
-["Farmacia Nieves Lopez Y Julio Arias Cb","Yunquera","Calle Alfaguara, 18 - 29410"],
-["Farmacia Mª Angeles Bailén","Pizarra","Calle Lealtad, S/N - 29560"],
-["Farmacia Cerralba","Pizarra","Ronda Este, 38 BAJO(FARMACIA) - 29569"],
-["BOOTELLO, L. JIMENEZ","Mijas","Pl. Constitución, 19 1 - 29650"],
-["Farmacia Lda. Maria Concepcion Trujillo","Las Mellizas-Los Llanos","Lugar Bermejo, 31 BAJO - 29593"],
-["Farmacia García y Juárez","Álora","Calle del Valle, 1 (BARRIADA DEL PUENTE) - 29510"],
-["Mesa Farmacia","Álora","Avenida Cervantes, 13 - 29500"],
-["Farmacia Cáliz Caracuel","Álora","Plaza Fuente Arriba, 21 - 29500"],
-["Farmacia Pérez Banderas","Álora","Calle Feria s/n - 29500"],
-["Maria Duregger","Benamocarra","Andalucía, 24 BAJO - 29719"],
-["JOSE FRANCISCO TELLEZ GAMEZ","Iznate","Plaza Virgen, 3 BAJO - 29792"],
-["FARMACIA CALETA DE VÉLEZ PALOMA LUQUE","Caleta de Vélez","Avenida Andalucía, 112 BAJO - 29751"],
-["Lucia Molina","Nerja","Castilla perez, 24 LOC(ED. MEDITERRANEO BAJO) - 29780"],
-["Pharmacy","Nerja","Calle Carlos Millón, 4 - 29780"],
-["Farmacia Dr. Buruaga C.B.","Nerja","Plaza Balcón de Europa, 1 - 29780"],
-["Susana Chicano Vega","Torrox-Costa","Avenida Europa, 2 BLOQ 83;BAJO - 29793"],
-["María Del Pilar Aguilera Aguilera","Torre del Mar","Calle Santa Margarita, 9 - 29740"],
-["Farmacia Lda. Pilar Bermejo Valenzuela","Torre del Mar","Avenida Andalucía, 63 BAJO(PLAZAMAR CENTRO) - 29740"],
-["Isabel Marta Rodriguez Rodriguez","Torre del Mar","Ruta de los Campanilleros, 8 BLOQ 4;1;G - 29740"],
-["Farmacia Jorge Rojo","Torre del Mar","Avenida Dr. Marañón, 8 BAJO - 29740"],
-["SUPARAFARMACIAONLINE","Torre del Mar","Av. Moscatel, S/N BAJO LOCAL E(POR 2 -1 ) - 29740"],
-["Farmacia Internacional","Benalmádena Costa","Zodiaco, 13 1(OFIC-8-9) - 29630"],
-["NAIMA BENALI LAHYANI","Benalmádena Costa","Calle Zodiaco, 13 BLOQ 1 BLOQ 1;BAJO;ASCENSOR - 29630"],
-["Farmacia Béjar","Arroyo de la Miel","Urbanización Béjar II, S/N LOCAL 15 - 29631"],
-["Marta Moragues Valladares","Benalmádena Costa","Boulevard, 8 BAJO - 29630"],
-["Farmacia El Higuerón ( 365 Días, 13 Horas)","Benalmádena","Avenida Retamar C.C. Altos del Higuerón - 29639"],
-["Juan Manuel Romero Muñóz","Benalmádena","Avenida Juan Luis Peralta, 4 LOCAL - 29639"],
-["Pueblosol Pharmacy Dr. Antonio Romero Garcia","Benalmádena","Calle Eros (Urb. Arena Golf), 1 - 29639"],
-["Farmacia Zarzuelo","Benalmádena Costa","Avenida Ciudad de Melilla, 20 - 29630"],
-["Promociones Lopez","Alhaurín el Grande","Av. la Libertad, 89 BAJO - 29120"],
-["Farmacia Las Castañetas","Campanillas","Calle Redoble, 13, Bajo (Las Castañetas) - 29590"],
-["Farmacia Castro Jaén","Málaga","Calle Navarro Ledesma, S/N - 29010"],
-["Jesus Garvi Carmona","Torremolinos","Calle Gral. Perón, 3 PORT 1;4;A - 29620"],
-["ÁNGELA PANCORBO PÉREZ","Antequera","Puerta de Granada, 6 BAJO - 29200"],
-["Farmacia Mesa","Campillos","Calle Real, 13 BAJO - 29320"],
-["Maria Josefa Alarcon Hidalgo","Campillos","Hermanos Machado, 20 BAJO - 29320"],
-["Sonsores Tallon Cobos","Colmenar","Ctra. Riogordo, 6 - 29170"],
-["Farmacia Sánchez Gavilán C.B.","Riogordo","Calle Pozo, 24 - 29180"],
-["Farmacia Hermanos Vallejo Navas Cb","Villanueva del Rosario","Calle Carrera, 14 - 29312"],
-["Farmacia Mejías Navas C.B.","Villanueva del Trabuco","Avenida Málaga, 7 - 29313"],
-["Farmacia Ángeles Rivera","Marbella","Calle San Bernabé, 1 BAJO - 29603"],
-["Farmacia Homeopharma Cb","Marbella","Avenida Ricardo Soriano, 27 BAJO;EDI.ALTAMIRA II - 29601"],
-["Farmacia Berdaguer C.B.","Marbella","Avenida Ricardo Soriano, 4 EDIF. ZELIM - 29601"],
-["Farmacia Mingorance Gutiérrez","Marbella","Avenida Ricardo Soriano, 44 - 29601"],
-["Farmacia Ldo. Aurelio Gonzalez","San Pedro de Alcántara","Avenida Pablo Ruiz Picasso, 27 BAJO - 29670"],
-["Concepcion Mayor Torres","San Pedro de Alcántara","Calle Limones (Urb. Linda Vista Playa), 18 1;B - 29670"],
-["Paseo Del Mar Pharmacy","San Pedro de Alcántara","Avenida Mar Mediterráneo, S/N - 29670"],
-["Carmen Almagro Aragon","Estepona","Plaza Alonso Quijano, 2 ESC. 1 BAJO 2º - 29680"],
-["Laboratorio Ayala","Estepona","Juan carlos i, 15 A - 29680"],
-["Farmacia Terraza","Estepona","Calle Terraza, 42 - 29680"],
-["Farmacia Ruedas Y Pérez De Vargas","Estepona","Calle Adolfo Suárez de Figueroa, 6 BAJO;LOCAL - 29680"],
-["Manuel Troyano Martínez","Estepona","Av. Litoral, 6 BAJO-6(EDIF.EUROPA) - 29680"],
-["Farmacia Puerto Banús","Marbella","Avenida de las Naciones Unidas, 1 (JUNTO HIPERCOR) - 29660"],
-["JOSE ENRIQUE CAVANNA FUENTES","Nueva Andalucía","Avenida Playas del Duque (Edif. Granada), 2 BAJO;2;APARTAMENTO 1-2 - 29660"],
-["MARÍA JOSÉ FERNÁNDEZ LÓPEZ","Marbella","Av. Gral. López Domínguez, 1 - 29603"],
-["Artola","Marbella","Carretera N-340, KM. 194 - 29603"],
-["Farmacia Franquelo Cb","Antequera","Calle Infante Don Fernando, 62 - 29200"],
-["Farmacia Próxima Parquesol","Antequera","Urbanización Parquesol, 33 - 29200"],
-["Farmacia Antequera","Antequera","Calle Lucena, 15 - 29200"],
-["Farmacia De La Salud Y Las Aguas","Antequera","Cuesta Real, 53 - 29200"],
-["Farmacia Benahavís Cb","Benahavís","Avenida Andalucía, 4 - 29679"],
-["Farmacia Adela Lavigne","Marbella","Calle Jacinto Benavente, 6 BAJO 3 - "],
-["Farmacia Raigón Cb","Marbella","Avenida Ricardo Soriano, 64 - 29601"],
-["Eduardo Corrales Márquez","Ronda","Lauria, 9 BAJO - 29400"],
-["Farmacia Serrano Aznarte Cb","Ronda","Calle Carrera Espinel, 24 - 29400"],
-["Gaspar Carreño Ramirez","Ronda","Setenil, 10 - 12 LOCAL - 29400"],
-["Jose Javier Serrano Lancha","Ronda","Colombia, 29 BAJO - 29400"],
-["Bel Air Pharmacy","Saladillo-Benamara","Calle Orégano (Urb. Bel-Air), 1 - 29688"],
-["Pharmacy","Cancelada","Plaza José Vázquez Espinosa, 1 - 29688"],
-["Colegio Oficial De Farmaceuticos De La Provincia De Malaga","San Pedro de Alcántara","Calle Dr. Eduardo Evangelista, 2 BAJO;LOCAL - 29670"],
-["Calypso","Mijas","N-340, S/N KM 198 ( C COM LA VEGA) - 29649"],
-["Farmacia Las Palmeras Benalmadena","Benalmádena","Avenida las Palmeras, S/N 0 - 29630"],
-["Farmacia López Giménez C.B.","La Cala del Moral","Calle Tajamar, 23 - 29720"],
-["Farmacia Ldo.Rafael. Garnica Leon","Rincón de la Victoria","Carretera de Benagalbón, Urb. Vistamar 2, 1, Entrada por Autovía salida 254. Frente Construcciones Cano. Junto glorieta tres Delfines. BAJO(LOCAL6) - 29730"],
-["Farmahouse","Almargen","Calle Cortina Estación, S/N 0 - 29330"],
-["Farmacia Barco","Almuñécar","Andalucia, 1 - "],
-["Farmacia Pérez Falcón","Antequera","Calle Campillo Bajo, S/N - 29200"],
-["Farmacia Ldos. Perez Ostos","Antequera","Carreteros, 3 BAJO - 29200"],
-["M.D.Villodres. Y A. Alvarez C.B.","Antequera","San francisco, 1 BAJO - 29200"],
-["Farmacia De Cartajima","Cartajima","Iglesia, 28 - 29452"],
-["Farmacia El Borge","El Borge","República, 1 - 29718"],
-["Farmacia Escalante Bustos Cb","El Burgo","Calle Las Erillas, S/N - 29420"],
-["Farmacia Molero - Salguero - Arenas","El Gastor","Fuente, 44 BAJO - "],
-["Parafarmacia Orozco","El Saucejo","Calle Fray Antonio, 3 - "],
-["Farmacia Lda Isabel Galdon","Estepona","España, 236 2;A;ED MEDITERRANEO - 29680"],
-["Farmacia Puerto Alto","Estepona","Naranjo, 47 BAJO LOC.7(PTO.ALTO) - 29680"],
-["Cuchillos Forja Daniel Torres","Guadalix de la Sierra","Camino Pilancón, 6 PASEO DE LA ERMITA - "],
-["Farmacia Jayena","Jayena","Talleres, 7 BAJO - "],
-["Farmacia San Miguel Lora De Estepa","Lora de Estepa","San miguel, 25 - "],
-["Farmacia Torres El Palo Málaga","Málaga","Carretera Almería, 18 - 29720"],
-["Farmacia Contreras Baeza","Málaga","Conde de toreno, 8 Palma Palmilla - 29009"],
-["Cuidafarma","Málaga","Calle Maestro Solano, 13 - 29018"],
-["María Alejandra Aranda Casas","Málaga","Matagallo, 69 BAJO - 29018"],
-["Hefamecom","Málaga","San patricio, 9 BAJO - 29013"],
-["Villafuerte","Málaga","Villafuerte (el palo), 36 - 29018"],
-["Farmacia Calvache Guerrero","Manilva","Manilva, S/N BAJO - 29692"],
-["Farmacia Espejo","Marbella","Plaza Naranjos, 4 - 29601"],
-["Farmacia Roldan","Marbella","San francisco, 9 BAJO - 29601"],
-["Serna Y Sanchez","Monda","Francisco liñan, 1 BAJO - 29110"],
-["Chillar Farmacia","Nerja","Chillar, 2 - 29780"],
-["Farmacia Luque","Ojén","Carrera, 14 BAJO(LOCAL) - 29610"],
-["Francisco Navarro Zurita S.L.","Rincón de la Victoria","Limonero, 1 -TORRE C;7(ED.HORIZONTE) - 29730"],
-["Ana Sánchez La Chica","Rincón de la Victoria","Mediterraneo, 100 BAJO - 29730"],
-["Slim Secrets","Rincón de la Victoria","Poeta manuel alcantara, 6 BAJO 7 - 29730"],
-["Bar Pilar","Roa","Santa maria, 5 BAJO - "],
-["Lorenzo Ruiz Becerra","Ronda","Granada, 27 BAJO - 29400"],
-["Nueva","San Pedro de Alcántara","Dr. eduardo evangelista, 12 BAJO - 29670"],
-["Farmacia.Ldo. Alvaro Mayor Olea","Secadero","Jimena, 18 BAJO - 29692"],
-["Jose Maria Perez Peña","Sierra de Yeguas","San bartolome, 9 BAJO - 29328"],
-["Farmacia Canovas Gárcîa","Torremolinos","Periodista felipe sánchez, 6 - 29620"],
-["Cho - Phar C.B.","Torremolinos","Playamar, 8 BLOQ 8;BAJO - 29620"],
-["Los Álamos","Torremolinos","Riviera, 76 LOCAL-2 - 29620"],
-["Abril Herrera - Movitel Ubeda","Úbeda","Libertad, 16 -BIS;BAJO - "],
-["Farmacia Molino De Velasco","Vélez","Calle Molino Velasco, 8 - 29700"],
-["","Alameda","C/ PEÑUELAS NÚM. 1 - "],
-["","Alhaurin de la Torre","LAS ERAS LOCAL 3 (URB. CORTIJOS DEL SOL) - "],
-["","Alhaurin de la Torre","AVDA. DEL MAR, 5 URB. RETAMAR - "],
-["","Alhaurin el Grande","AVDA. DE LA CONSTITUCION NUM. 11 - "],
-["","Alora","VERACRUZ, 8 - "],
-["","Alozaina","CALVARIO, 40 (Guardia Localizada) - "],
-["Farmacia Ibáñez Con, C. B.","Antequera","C/. CANTAREROS, 19 - 29200"],
-["","Archidona","CARRERA, 26 - "],
-["","Ardales","REAL, 8 (Guardia Localizada) - "],
-["","Costa","SAN SILVESTRE S/N BLOQUE 8 BONANZA - Benalmadena - "],
-["FARMACIA LDA. MERCEDES AGUERA","Estacion","AV. ANDALUCIA, 53 - Cartama - 29580"],
-["","Casabermeja","FUENTE ABAJO S/N - "],
-["","Cuevas de San Marcos.","JUAN CARLOS I, 12 - "],
-["Farmacia Escalante Bustos Cb","Burgo (El)","C/. ERILLAS, 2 - 29420"],
-["MANUEL TROYANO MARTINEZ","Estepona","AVDA ANDALUCIA, 168 - 29680"],
-["","Estepona","AVDA DEL CARMEN, 4 - "],
-["","Estepona","AVDA. PADRE CURA ROTONDA HIDRALIA - "],
-["Pharmacy - Optics Artacho Estepona","Estepona","REAL, 111 - 29680"],
-["","FUENGIROLA","AV. LOS BOLICHES, 74 - "],
-["","FUENGIROLA","AV. JESUS SANTOS REIN N 21 (ESQ. C/ FERIA JEREZ) - "],
-["Farmacia Monda Cb","FUENGIROLA","MONDA, 1 - 29640"],
-["","Málaga","ALAMEDA PRINCIPAL, 2 - "],
-["Farmacia Carmen Díaz Suárez Y Otros C.B.","Málaga","CALLE ALCALDE JOAQUIN QUILES NUM. 15 - 29014"],
-["","BARRIADA CHURRIANA","CARRETERA DE ALORA NUM. 33 - "],
-["","Málaga","AV.DE LAS AMERICAS ED. AMERICA L 14 - "],
-["","Málaga","AV ANDALUCIA, 61 (CARRANQUE) - "],
-["","Málaga","AV. ANTONIO SOLER NÚM. 19 (ROTONDA) - "],
-["","CENTRO","ARMENGUAL DE LA MOTA, 13 - SECTOR CORTE INGLES - "],
-["","Málaga","AVDA DE LA AURORA S/N LOCAL C2-1 - "],
-["","Málaga","AVDA. DE LA AURORA, 59 - "],
-["","Málaga","PLAZA DE BAILÉN NÚM. 9 - "],
-["","Málaga","C/ BEETHOVEN NUM. 6 BDA. LA PAZ - "],
-["","Málaga","CALLEJONES DEL PERCHEL NÚM. 13 - "],
-["","Málaga","AVDA. CAMARON DE LA ISLA NUM. 2 - "],
-["","Málaga","AVDA CANOVAS DEL CASTILLO, 8 - "],
-["GALLARDO DE LA CUEVA MATILDE","Málaga","AVDA. CARLOS HAYA, 19 (ENTRE HOSPITAL CARLOS HAYA Y ARROYO DEL CUARTO - PATHELIN) - 29010"],
-["GALLARDO DE LA CUEVA MATILDE","Málaga","AVDA CARLOS HAYA, 63 - 29010"],
-["","Málaga","CASTILLA, S/N EDIF EL CASTILLAR (FRENTE CENTRO DE SALUD PORTADA ALTA) - "],
-["","Málaga","CENTRO COMERCIAL MUELLE, 1 LOCAL 43 - "],
-["","BARRIADA CHURRIANA","CRTA COIN. 70 (NUEVO HELIOMAR) - "],
-["","Málaga","PZA. DE LA CONSTITUCION, 8 - "],
-["","Málaga","C/ CUARTELES NÚM. 42 (MERCADO DEL CARMEN) - "],
-["","Málaga","AVDA. DE LA ESTACION NUM. 1 - "],
-["","Málaga","C/ EUGENIO GROSS NUM. 34 - "],
-["","Málaga","EXPLANADA DE LA ESTACION S/N (Frente entrada principal Vialia) - "],
-["","Málaga","C/ FRAY LUIS DE LEÓN NÚM. 14 - "],
-["","Málaga","FUENTE DE COLORES C/ JORGE LUIS BORGES NUM. 10 - "],
-["","Málaga","C/ GALLITO NUM. 5 (LOS GIRASOLES) - "],
-["","Málaga","C/ GAUCIN NUM. 32 - "],
-["","Málaga","HERMES,10 LOCAL 1 C - "],
-["Farmacia Jaboneros","Málaga","AV. HERNÁN NÚÑEZ DE TOLEDO NÚM. 2 (FRENTE A VILLA CRISTINA) - 29018"],
-["","Málaga","C/ HEROE DE SOSTOA NUM. 131 - "],
-["","Málaga","HEROE SOSTOA, 103 BL. OBRAS PUBLICA - "],
-["","Málaga","C/. LA HOZ NUM. 27 (ANTERIOR A C/. AYALA) JUNTO MERCADO DE HUELIN. BDA. DE HUELIN - "],
-["","Málaga","IMPERIO ARGENTINA, 15 ED FERROVIAL 3 LC3 - "],
-["","Málaga","C/ ISLA CRISTINA, 30 (A ESPALDAS ANTIGUA GASOLINERA ALASKA - "],
-["","Málaga","AVENIDA JORGE LUIS BORGES NÚM. 31 - "],
-["VELASCO LASARTE GUILLERMO","Málaga","AVDA. JUAN SEBASTIAN ELCANO NUM. 2 - 29017"],
-["VELASCO LASARTE GUILLERMO","Málaga","AVDA. JUAN SEBASTIAN ELCANO NUM. 42 - 29017"],
-["","Málaga","LARA CASTAÑEDA, 15 (PTO DE LA TORRE) - "],
-["","Málaga","C/ LARIOS NUM. 8 - "],
-["","Málaga","PASEO DEL LIMONAR NUM. 12 - "],
-["","Málaga","MAESTRANZA, 16 - "],
-["","Málaga","MAGISTRADO SALVADOR BARBERAN, 4 - "],
-["","Málaga","CALLE MARIA TUBAU NUM. 42 - "],
-["AVILA SAEZ MARIA TERESA","Málaga","C/. MARTINEZ BARRIONUEVO N 2 - 29013"],
-["","Málaga","MARTINEZ MALDONADO, 40 - "],
-["","Málaga","AV. MAYORAZGO NUM. 6 - "],
-["","Málaga","PLAZA DE LA MERCED, 9 - "],
-["","Málaga","MESONEROS ROMANOS, 2 - "],
-["","Málaga","PZA. MIRAFLORES DE LOS ÁNGELES NÚM. 2 - "],
-["","Málaga","AVDA. MOLIER, 41 (LAS PIRAMIDES) - "],
-["","Málaga","MUELLE DE HEREDIA, 2 - "],
-["","Málaga","NAVARRO LEDESMA, 241 EDIF LAS ADELFAS - "],
-["FARMACIA LDA. CARMEN PALOMAR","Málaga","OMAR, 20 - 29004"],
-["RUBIO RUIZ EMILIO - GONZALEZ BALBOA ÁGUEDA","PARQUE DEL CINE","C/. ORSON WELLES NUM. 32 - SECTOR TEATINOS - 29010"],
-["","Málaga","PACIFICO, 34 - "],
-["","BARRIADA CHURRIANA","C/. PERIODISTA JUAN ANTONIO RANDO NUM. 1 LCAL. 4 - "],
-["","Málaga","C/ PIRANDELLO, 8 DETRAS DE PALACIO DE JUSTICIA - "],
-["","Málaga","PJE. MIRAMAR EL PALO 10 LCAL. 15 - "],
-["","Málaga","PJE. TAMAYO Y BAUS NUM. 2 - "],
-["","Málaga","AV. PLUTARCO BQ. 8 LCAL. 1 Y 2 4 FASE - "],
-["","Málaga","P. MARITIMO C. MELILLA NUM. 19 (JUNTO AL MUELLE 1) - "],
-["","Málaga","PASEO DE REDING, 17 (FRENTE PLAZA DE TOROS) - "],
-["","Málaga","CALLE RIGA NUM. 18 (PARQUE SEGOVIA - CERCA DE MERCADONA) - "],
-["","Málaga","ROTONDA DE SUAREZ N 3 - "],
-["","Málaga","PASEO DE SANCHA NUM. 23 - "],
-["","Málaga","CAMINO SUAREZ, 33 ED. JAZMINES - "],
-["","Málaga","PASEO DE LOS TILOS NUM. 30 - "],
-["","Málaga","TRINIDAD GRUND, 12 - "],
-["","Málaga","AVDA DE VELAZQUEZ, 84 BDA. VIRGEN DE BELEN - "],
-["Farmacia Plaza De La Victoria","Málaga","PZA. DE LA VICTORIA, 11 - 29012"],
-["","Málaga","C/. VILLANUEVA DE TAPIA, 14 LOCAL 3 (URB. LITORAL FRENTE HOSPITAL QUIRON) - "],
-["","Málaga","C/ VIRGEN DE LA ESPERANZA, 16 - "],
-["","Manilva","AVDA. MANILVA, S-N (SABINILLAS) - "],
-["","MARBELLA","CRTA DE CADIZ KM 194 URB ARTOLA, 2 - "],
-["","MARBELLA","C/CAMILO JOSE CELA, 13 - "],
-["","MARBELLA","CENTRO COMERCIAL TEMBO, LOCAL 1 - "],
-["MINGORANCE GUTIÉRREZ ANTONIO","MARBELLA","AV. RICARDO SORIANO, 4 - 29600"],
-["","Nerja","C/ CARRETERA NUM. 1 (ESQUINA C/ ANTONIO FERRANDIS NUM. 1) - "],
-["Farmacia Fernández","Ronda","ESPINEL, 38 - 29400"],
-["Rafael Aguilar Redondo","Torremolinos","AVDA DE MANANTIALES, 28 EDIF AVENIDA - 29620"],
-["","Torremolinos","PABLO BRUNA, 1 - "],
-["","Velez-Malaga","PLAZA ECCE HOMO - "],
-["","TORRE DEL MAR","AVDA DEL SOL EDIF AZALEA BQ 1 LOC 2 - "]
-];
-export default function Page() {
-  const [localidad, setLocalidad] = useState("");
-  const [diurno, setDiurno] = useState(true);
-  const [guardia, setGuardia] = useState(false);
-  const [festivo, setFestivo] = useState(false);
-  const [texto, setTexto] = useState("");
-  const [productos, setProductos] = useState<string[]>([]);
-  const [enviado, setEnviado] = useState(false);
+const TELEFONO_PRUEBA = "34634467345";
 
-  const localidades = Array.from(new Set(FARMACIAS.map(f=>f[1]))).sort();
-  const horario = [diurno?"Diurno":"", guardia?"De guardia":"", festivo?"Festivo":""].filter(Boolean).join(", ") || "Diurno";
-  const mensajeBase = `Hola, soy cliente de FarmaCerca 24h. Estoy en ${localidad || "Málaga"} (${horario}). ¿Tienes en stock?%0A` + productos.map(p=>`- ${p}`).join("%0A") + `%0APara responder pulsa: farmacerca24h.es/responder%0ASolo información, no venta. Gracias.`;
-  const filtradas = FARMACIAS.filter(f => !localidad || f[1] === localidad);
-  const tres = filtradas.slice(0, 3);
-  const anadir = () => { if(!texto.trim()) return; setProductos([...productos, texto.trim()]); setTexto(""); setEnviado(false); };
+export default function Page() {
+  const [vista, setVista] = useState<"cliente" | "farmacia">("cliente");
+  const [producto, setProducto] = useState("");
+  const [pedido, setPedido] = useState("");
+  const [respuesta, setRespuesta] = useState("");
+
+  // Cuando el cliente pulsa Buscar, guardamos el pedido
+  const enviarPedido = () => {
+    if(!producto.trim()) return;
+    setPedido(producto);
+    setRespuesta("");
+    // Esto es lo que le llegaría a la farmacia por WhatsApp en modo prueba
+    const texto = `Hola, soy FarmaCerca 24h. Cliente en Málaga pregunta:\n- ${producto}\nContesta con: TENGO / NO TENGO / BAJO PEDIDO`;
+    window.open(`https://wa.me/${TELEFONO_PRUEBA}?text=${encodeURIComponent(texto)}`, "_blank");
+  };
 
   return (
-    <main style={{ maxWidth: 480, margin: "0 auto", padding: 12, fontFamily: "sans-serif", background: "#fff" }}>
-      <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
-        <div style={{ fontSize: 36 }}>➕</div>
-        <div><div style={{ fontSize: 24, fontWeight: 900 }}>Farmacerca <span style={{ background: "#16a34a", color: "#fff", padding: "2px 10px", borderRadius: 20 }}>24h</span></div><div style={{ fontSize: 14 }}>A un mensaje de ti</div></div>
+    <main style={{ maxWidth: 480, margin: "0 auto", padding: 12, fontFamily: "sans-serif" }}>
+      <h2 style={{ textAlign: "center" }}>FarmaCerca 24h <span style={{ background: "#16a34a", color: "#fff", padding: "2px 10px", borderRadius: 20 }}>PRUEBA</span></h2>
+
+      {/* BOTONES PARA CAMBIAR DE ROL EN LA PRUEBA */}
+      <div style={{ display: "flex", gap: 8, marginBottom: 16 }}>
+        <button onClick={()=>setVista("cliente")} style={{ flex: 1, padding: 12, borderRadius: 10, background: vista==="cliente" ? "#16a34a" : "#eee", color: vista==="cliente" ? "#fff" : "#000", border: "none", fontWeight: "bold" }}>👤 Soy CLIENTE</button>
+        <button onClick={()=>setVista("farmacia")} style={{ flex: 1, padding: 12, borderRadius: 10, background: vista==="farmacia" ? "#0ea5e9" : "#eee", color: vista==="farmacia" ? "#fff" : "#000", border: "none", fontWeight: "bold" }}>🏪 Soy FARMACIA</button>
       </div>
-      <p style={{ fontSize: 13, background: "#dcfce7", padding: 8, borderRadius: 8 }}>✅ MODO PRUEBA: <b>389 farmacias</b> - Todas con WhatsApp <b>634467345</b> {localidad ? `• ${filtradas.length} en ${localidad}` : ""}</p>
-      <p style={{ fontWeight: "bold" }}>Elige:</p>
-      <select value={localidad} onChange={(e)=>{setLocalidad(e.target.value); setEnviado(false);}} style={{ width: "100%", padding: 14, borderRadius: 12, border: "2px solid #16a34a", fontSize: 16 }}>
-        <option value="">📍 Ciudad o pedanía...</option>
-        {localidades.map(l=><option key={l} value={l}>{l}</option>)}
-      </select>
-      <p style={{ fontWeight: "bold" }}>Para el Chat, marcar si estamos en horario:</p>
-      <div style={{ display: "flex", gap: 14, flexWrap: "wrap" }}>
-        <label><input type="checkbox" checked={diurno} onChange={()=>setDiurno(!diurno)} /> ☀️ Diurno</label>
-        <label><input type="checkbox" checked={guardia} onChange={()=>setGuardia(!guardia)} /> 🌙 De guardia</label>
-        <label><input type="checkbox" checked={festivo} onChange={()=>setFestivo(!festivo)} /> 📅 Festivo</label>
-      </div>
-      <h3 style={{ color: "#16a34a" }}>💬 Chat de consulta</h3>
-      <div style={{ display: "flex", border: "1px solid #16a34a", borderRadius: 12, overflow: "hidden" }}>
-        <input value={texto} onChange={(e)=>setTexto(e.target.value)} onKeyDown={(e)=>{if(e.key==="Enter") anadir();}} placeholder="¿Qué necesitas? Escribe el producto..." style={{ flex: 1, padding: 14, border: "none" }} />
-        <button onClick={anadir} style={{ background: "#16a34a", color: "#fff", border: "none", padding: "0 18px", fontWeight: "bold" }}>Enviar</button>
-      </div>
-      {productos.map((p,i)=>(
-        <div key={i} style={{ display: "flex", justifyContent: "space-between", background: "#f0fdf4", padding: 12, borderRadius: 10, marginTop: 8, border: "1px solid #bbf7d0" }}>
-          <span>💊 {p}</span><button onClick={()=>setProductos(productos.filter((_,x)=>x!==i))} style={{ border: "none", background: "none" }}>❌</button>
+
+      {vista === "cliente" && (
+        <div>
+          <p><b>1. ¿Qué necesitas?</b></p>
+          <input value={producto} onChange={(e)=>setProducto(e.target.value)} placeholder="Ej: Ibuprofeno 600mg" style={{ width: "100%", padding: 14, borderRadius: 12, border: "2px solid #16a34a" }} />
+          <button onClick={enviarPedido} style={{ width: "100%", padding: 14, marginTop: 10, background: "#16a34a", color: "#fff", border: "none", borderRadius: 12, fontWeight: "bold" }}>Enviar a farmacia de prueba →</button>
+          <p style={{ fontSize: 13, color: "#555" }}>Te va a abrir WhatsApp al 634467345. Dale a Enviar. Es la prueba.</p>
+          {pedido && (
+            <div style={{ background: "#f0fdf4", border: "1px solid #16a34a", padding: 12, borderRadius: 12, marginTop: 12 }}>
+              <b>Pedido enviado:</b> {pedido}<br/>
+              <b>Respuesta de la farmacia:</b> {respuesta ? respuesta : "⏳ Esperando que la farmacia pulse un botón..."}
+              {respuesta && <div style={{ marginTop: 8, fontSize: 20 }}>{respuesta}</div>}
+            </div>
+          )}
+          <p style={{ fontSize: 12 }}>Ahora pulsa arriba <b>“Soy FARMACIA”</b> para simular que eres la farmacia.</p>
         </div>
-      ))}
-      {productos.length>0 && <button onClick={()=>{if(!localidad){alert("Elige primero tu ciudad o pedanía"); return;} setEnviado(true);}} style={{ width: "100%", padding: 14, marginTop: 10, background: "#16a34a", color: "#fff", border: "none", borderRadius: 12, fontWeight: "bold" }}>Buscar en 3 farmacias a la vez →</button>}
-      <p style={{ fontWeight: "bold" }}>✅ en stock &nbsp; ❌ Sin stock &nbsp; 👁️ otro &nbsp; ✏️ Bajo pedido</p>
-      {enviado && tres.map((f, idx)=>(
-        <div key={idx} style={{ border: "2px solid #16a34a", borderRadius: 14, padding: 12, marginBottom: 12, display: "flex", gap: 10 }}>
-          <div style={{ background: "#16a34a", color: "#fff", width: 38, height: 38, borderRadius: "50%", display: "flex", alignItems: "center", justifyContent: "center", fontWeight: "bold", flexShrink: 0 }}>{idx+1}</div>
-          <div style={{ flex: 1 }}>
-            <b>Farmacia {f[0] || "Sin nombre - Ver dirección"}</b><div style={{ fontSize: 13 }}>📍 {f[2]}<br/>📞 PRUEBA: 634467345</div>
-            <button onClick={()=>window.open(`https://wa.me/${TELEFONO_PRUEBA}?text=${mensajeBase}`, "_blank")} style={{ background: "#16a34a", color: "#fff", border: "none", padding: "10px 18px", borderRadius: 10, marginTop: 8, fontWeight: "bold" }}>💬 Chat</button>
+      )}
+
+      {vista === "farmacia" && (
+        <div style={{ background: "#dcfce7", padding: 14, borderRadius: 14 }}>
+          <p style={{ fontSize: 13 }}>📩 WhatsApp recibido en 634467345:</p>
+          <div style={{ background: "#fff", padding: 12, borderRadius: 12 }}>
+            <b>Hola, soy FarmaCerca 24h.</b><br/>
+            Cliente en Málaga pregunta:<br/>
+            <b>- {pedido || "Ibuprofeno 600mg (ejemplo)"}</b><br/>
+            ¿Lo tienes?
           </div>
-          <div style={{ flex: 1 }}>
-            {productos.map((p,i)=><div key={i} style={{ fontSize: 14 }}>{p}</div>)}
-            <button onClick={()=>window.open(`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent("Farmacia "+f[0]+" "+f[2])}`, "_blank")} style={{ background: "#0ea5e9", color: "#fff", border: "none", padding: "8px 10px", borderRadius: 10, marginTop: 8, fontWeight: "bold" }}>✈️ Cómo llegar</button>
-          </div>
+          <p style={{ fontWeight: "bold", marginTop: 12 }}>Pulsa una opción:</p>
+          <button onClick={()=>{setRespuesta("✅ TENGO"); setVista("cliente");}} style={{ width: "100%", padding: 14, marginBottom: 8, background: "#16a34a", color: "#fff", border: "none", borderRadius: 12, fontWeight: "bold" }}>✅ TENGO</button>
+          <button onClick={()=>{setRespuesta("❌ NO TENGO"); setVista("cliente");}} style={{ width: "100%", padding: 14, marginBottom: 8, background: "#ef4444", color: "#fff", border: "none", borderRadius: 12, fontWeight: "bold" }}>❌ NO TENGO</button>
+          <button onClick={()=>{setRespuesta("✏️ BAJO PEDIDO - Mañana lo tengo"); setVista("cliente");}} style={{ width: "100%", padding: 14, background: "#f59e0b", color: "#fff", border: "none", borderRadius: 12, fontWeight: "bold" }}>✏️ BAJO PEDIDO</button>
         </div>
-      ))}
-      <div style={{ background: "#dcfce7", border: "1px solid #16a34a", borderRadius: 12, padding: 12, marginTop: 16, textAlign: "center" }}>
-        <b>Contacto FarmaCerca 24 h</b><div style={{ fontSize: 13 }}>MODO PRUEBA - Todo va al 634467345</div>
-        <button onClick={()=>window.open(`https://wa.me/${TELEFONO_PRUEBA}?text=Hola%20FarmaCerca`, "_blank")} style={{ background: "#fff", border: "1px solid #16a34a", padding: "8px 12px", borderRadius: 10, color: "#16a34a", fontWeight: "bold", marginTop: 6 }}>💬 Chat →</button>
-      </div>
-      <div style={{ textAlign: "center", marginTop: 12, fontSize: 11, color: "#444" }}>FarmaCerca 24 h solo informa de disponibilidad. La venta y dispensación la realiza la farmacia autorizada.<br/>Aviso Legal • Privacidad • Términos • Cookies</div>
+      )}
     </main>
   );
 }
