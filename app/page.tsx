@@ -202,13 +202,12 @@ export default function Page() {
 
   return (
     <main style={{ maxWidth: 480, margin: "0 auto", padding: 12, fontFamily: "sans-serif", background: "#fff" }}>
-      {/* HEADER - EXACTO A LA FOTO */}
+      {/* HEADER - LOGO GRANDE COMO EN LA FOTO */}
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 8 }}>
-        <img src="/logo.png" alt="Farmacerca 24h - A un mensaje de ti" style={{ height: "56px", width: "auto", display: "block" }} />
+        <img src="/logo.png" alt="Farmacerca 24h - A un mensaje de ti" style={{ height: "80px", width: "auto", display: "block" }} />
         <button onClick={()=>alert("Para descargar el acceso directo: en tu móvil pulsa Compartir y luego Añadir a pantalla de inicio.")} style={{ background: "#0090ff", color: "#fff", border: "none", padding: "10px 12px", borderRadius: 10, fontWeight: "bold", fontSize: 14, whiteSpace: "nowrap" }}>⬇ Descargar acceso directo</button>
       </div>
 
-      {/* BOTONES PRUEBA CLIENTE / FARMACIA - solo para probar, no se ve en la foto final */}
       <div style={{ display: "flex", gap: 8, margin: "12px 0" }}>
         <button onClick={()=>setVista("cliente")} style={{ flex: 1, padding: 10, borderRadius: 10, background: vista==="cliente" ? "#16a34a" : "#eee", color: vista==="cliente" ? "#fff" : "#000", border: "none", fontWeight: "bold" }}>👤 Soy CLIENTE</button>
         <button onClick={()=>setVista("farmacia")} style={{ flex: 1, padding: 10, borderRadius: 10, background: vista==="farmacia" ? "#0ea5e9" : "#eee", color: vista==="farmacia" ? "#fff" : "#000", border: "none", fontWeight: "bold" }}>🏪 Soy FARMACIA (Prueba)</button>
@@ -236,42 +235,43 @@ export default function Page() {
           </div>
 
           {productos.map((p,i)=>(
-            <div key={i} style={{ display: "flex", justifyContent: "space-between", background: "#f0fdf4", padding: 12, borderRadius: 10, marginTop: 8, border: "1px solid #bbf7d0" }}>
+            <div key={i} style={{ display: "flex", justifyContent: "space-between", background: "#f0fdf4", padding: 10, borderRadius: 10, marginTop: 8, border: "1px solid #bbf7d0" }}>
               <span>💊 {p}</span><button onClick={()=>setProductos(productos.filter((_,x)=>x!==i))} style={{ border: "none", background: "none", fontSize: 16 }}>❌</button>
             </div>
           ))}
 
-          <p style={{ fontWeight: "bold", fontSize: 18, margin: "14px 0 4px" }}>✓ en stock &nbsp; <span style={{ color: "#dc2626" }}>✗</span> Sin stock &nbsp; 👁 otro &nbsp; ✏️ Bajo pedido</p>
-          <h3 style={{ color: "#16a34a", fontSize: 22, margin: "6px 0 8px" }}>💬 Obteniendo respuestas...</h3>
+          {/* DESDE AQUÍ TODO MÁS PEQUEÑO Y COMPACTO, COMO EN TU FOTO */}
+          <p style={{ fontWeight: "bold", fontSize: 14, margin: "10px 0 2px" }}>✓ en stock &nbsp; <span style={{ color: "#dc2626" }}>✗</span> Sin stock &nbsp; 👁 otro &nbsp; ✏️ Bajo pedido</p>
+          <h3 style={{ color: "#16a34a", fontSize: 18, margin: "4px 0 6px" }}>💬 Obteniendo respuestas...</h3>
 
-          {(enviado ? tres : tres).map((f, idx)=>(
-            <div key={idx} style={{ border: "2px solid #16a34a", borderRadius: 14, padding: 12, marginBottom: 12, display: "flex", gap: 10 }}>
-              <div style={{ background: "#16a34a", color: "#fff", width: 40, height: 40, minWidth: 40, borderRadius: "50%", display: "flex", alignItems: "center", justifyContent: "center", fontWeight: "bold", fontSize: 22 }}>{idx+1}</div>
+          {tres.map((f, idx)=>(
+            <div key={idx} style={{ border: "1.5px solid #16a34a", borderRadius: 10, padding: 8, marginBottom: 8, display: "flex", gap: 8 }}>
+              <div style={{ background: "#16a34a", color: "#fff", width: 32, height: 32, minWidth: 32, borderRadius: "50%", display: "flex", alignItems: "center", justifyContent: "center", fontWeight: "bold", fontSize: 18 }}>{idx+1}</div>
               <div style={{ flex: 1 }}>
-                <b style={{ fontSize: 18 }}>{f[0]}</b><br /><span style={{ fontSize: 15 }}>📍 {f[2]} - {f[1]}</span><br />
-                <button onClick={()=>window.open(`https://wa.me/${TELEFONO_PRUEBA}?text=${encodeURIComponent(`Hola ${f[0]}, soy cliente de FarmaCerca 24h de ${localidad || f[1]}. Horario: ${horario}. Necesito: ${productos.join(", ") || "Consulta general"}. ¿Lo tenéis en stock? Gracias`)}`, "_blank")} style={{ background: "#16a34a", color: "#fff", border: "none", padding: "10px 18px", borderRadius: 10, fontWeight: "bold", marginTop: 8 }}>💬 Chat</button>
+                <b style={{ fontSize: 15 }}>{f[0]}</b><br /><span style={{ fontSize: 13 }}>📍 {f[2]} - {f[1]}</span><br />
+                <button onClick={()=>window.open(`https://wa.me/${TELEFONO_PRUEBA}?text=${encodeURIComponent(`Hola ${f[0]}, soy cliente de FarmaCerca 24h de ${localidad || f[1]}. Horario: ${horario}. Necesito: ${productos.join(", ") || "Consulta general"}. ¿Lo tenéis en stock? Gracias`)}`, "_blank")} style={{ background: "#16a34a", color: "#fff", border: "none", padding: "6px 12px", borderRadius: 8, fontWeight: "bold", marginTop: 6, fontSize: 13 }}>💬 Chat</button>
               </div>
-              <div style={{ borderLeft: "2px solid #ccc", paddingLeft: 8, fontSize: 14, minWidth: 105 }}>
+              <div style={{ borderLeft: "1.5px solid #ccc", paddingLeft: 6, fontSize: 12, minWidth: 86 }}>
                 <div>{productos[0] || "Ibuprofeno 600mg"}</div>
                 <div>{productos[1] || "Paracetamol 1g"}</div>
                 <div>{productos[2] || "Crema"}</div>
-                <button onClick={()=>window.open(`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent("Farmacia "+f[0]+" "+f[2])}`, "_blank")} style={{ background: "#0090ff", color: "#fff", border: "none", padding: "8px 10px", borderRadius: 10, marginTop: 8, fontWeight: "bold", width: "100%" }}>✈ Cómo llegar</button>
+                <button onClick={()=>window.open(`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent("Farmacia "+f[0]+" "+f[2])}`, "_blank")} style={{ background: "#0090ff", color: "#fff", border: "none", padding: "6px 6px", borderRadius: 8, marginTop: 6, fontWeight: "bold", width: "100%", fontSize: 12 }}>✈ Cómo llegar</button>
               </div>
-              <div style={{ fontSize: 20, lineHeight: 1.6, textAlign: "center" }}>✓<br />✏️<br />👁</div>
+              <div style={{ fontSize: 16, lineHeight: 1.5, textAlign: "center" }}>✓<br />✏️<br />👁</div>
             </div>
           ))}
 
-          <div style={{ display: "flex", gap: 8, marginTop: 4 }}>
-            <button onClick={()=>{setGuardia(true); setDiurno(false);}} style={{ flex: 1, padding: 12, borderRadius: 12, fontWeight: "bold", background: "#dbeafe", border: "2px solid #0090ff", fontSize: 15 }}>🌙 Farmacias de guardia →<br /><span style={{ fontWeight: "normal", fontSize: 13 }}>Guardias de hoy</span></button>
-            <button onClick={()=>{setGuardia(false); setDiurno(true);}} style={{ flex: 1, padding: 12, borderRadius: 12, fontWeight: "bold", background: "#e6f7ee", border: "2px solid #16a34a", fontSize: 15 }}>📍 Farmacias cercanas →<br /><span style={{ fontWeight: "normal", fontSize: 13 }}>Por proximidad</span></button>
+          <div style={{ display: "flex", gap: 8, marginTop: 2 }}>
+            <button onClick={()=>{setGuardia(true); setDiurno(false);}} style={{ flex: 1, padding: 8, borderRadius: 10, fontWeight: "bold", background: "#dbeafe", border: "1.5px solid #0090ff", fontSize: 13 }}>🌙 Farmacias de guardia →<br /><span style={{ fontWeight: "normal", fontSize: 11 }}>Guardias de hoy</span></button>
+            <button onClick={()=>{setGuardia(false); setDiurno(true);}} style={{ flex: 1, padding: 8, borderRadius: 10, fontWeight: "bold", background: "#e6f7ee", border: "1.5px solid #16a34a", fontSize: 13 }}>📍 Farmacias cercanas →<br /><span style={{ fontWeight: "normal", fontSize: 11 }}>Por proximidad</span></button>
           </div>
 
-          <div style={{ background: "#e6f7ee", border: "2px solid #16a34a", borderRadius: 12, padding: 12, marginTop: 12 }}>
+          <div style={{ background: "#e6f7ee", border: "1.5px solid #16a34a", borderRadius: 10, padding: 8, marginTop: 8 }}>
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 8 }}>
-              <div><b>Contacto FarmaCerca 24 h</b><br /><span style={{ fontSize: 14 }}>¿Dudas o ayuda? Pulsa para escribirnos.</span></div>
-              <button onClick={()=>window.open(`https://wa.me/${TELEFONO_PRUEBA}?text=${encodeURIComponent("Hola FarmaCerca 24h, tengo una duda, ¿me ayudáis?")}`, "_blank")} style={{ background: "#fff", color: "#16a34a", border: "2px solid #16a34a", padding: "8px 12px", borderRadius: 10, fontWeight: "bold" }}>💬 Chat →</button>
+              <div style={{ fontSize: 13 }}><b>Contacto FarmaCerca 24 h</b><br /><span style={{ fontSize: 12 }}>¿Dudas o ayuda? Pulsa para escribirnos.</span></div>
+              <button onClick={()=>window.open(`https://wa.me/${TELEFONO_PRUEBA}?text=${encodeURIComponent("Hola FarmaCerca 24h, tengo una duda, ¿me ayudáis?")}`, "_blank")} style={{ background: "#fff", color: "#16a34a", border: "1.5px solid #16a34a", padding: "6px 10px", borderRadius: 8, fontWeight: "bold", fontSize: 13 }}>💬 Chat →</button>
             </div>
-            <div style={{ background: "#fff", border: "1px solid #16a34a", borderRadius: 8, padding: 10, marginTop: 8, display: "flex", justifyContent: "space-between" }}><span>✉️ E-mail: contacto@farmacerca24h.es</span><span style={{ color: "#16a34a", fontWeight: "bold" }}>Pulsa →</span></div>
+            <div style={{ background: "#fff", border: "1px solid #16a34a", borderRadius: 8, padding: 8, marginTop: 6, display: "flex", justifyContent: "space-between", fontSize: 13 }}><span>✉️ E-mail: contacto@farmacerca24h.es</span><span style={{ color: "#16a34a", fontWeight: "bold" }}>Pulsa →</span></div>
           </div>
         </>
       )}
@@ -297,12 +297,11 @@ export default function Page() {
         </div>
       )}
 
-      {/* PIE - EXACTO A LA FOTO */}
-      <footer style={{ textAlign: "center", padding: "18px 0 8px" }}>
-        <img src="/logo.png" alt="Farmacerca 24h - A un mensaje de ti" style={{ height: "44px", width: "auto", display: "block", margin: "0 auto" }} />
-        <div style={{ background: "#e6f7ee", border: "2px solid #16a34a", borderRadius: 20, padding: 10, margin: "12px 0", fontWeight: "bold", fontSize: 16 }}>Aviso Legal &nbsp;•&nbsp; Privacidad &nbsp;•&nbsp; Términos &nbsp;•&nbsp; Cookies</div>
-        <p style={{ fontSize: 13 }}>Farmacerca 24 h solo informa de disponibilidad.<br />La venta y dispensación la realiza la farmacia autorizada.</p>
-        <p style={{ fontSize: 12, color: "#666" }}>{FARMACIAS.length} farmacias • {localidades.length} ciudades y pedanías</p>
+      <footer style={{ textAlign: "center", padding: "12px 0 6px" }}>
+        <img src="/logo.png" alt="Farmacerca 24h - A un mensaje de ti" style={{ height: "62px", width: "auto", display: "block", margin: "0 auto" }} />
+        <div style={{ background: "#e6f7ee", border: "1.5px solid #16a34a", borderRadius: 16, padding: 8, margin: "8px 0", fontWeight: "bold", fontSize: 13 }}>Aviso Legal &nbsp;•&nbsp; Privacidad &nbsp;•&nbsp; Términos &nbsp;•&nbsp; Cookies</div>
+        <p style={{ fontSize: 12 }}>Farmacerca 24 h solo informa de disponibilidad.<br />La venta y dispensación la realiza la farmacia autorizada.</p>
+        <p style={{ fontSize: 11, color: "#666" }}>{FARMACIAS.length} farmacias • {localidades.length} ciudades y pedanías</p>
       </footer>
     </main>
   );
