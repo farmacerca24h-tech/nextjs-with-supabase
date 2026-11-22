@@ -2,6 +2,57 @@
 import { useState, useEffect } from "react";
 
 const TELEFONO_PRUEBA = "34634467345"; // 634467345 para pruebas
+
+// FESTIVOS LOCALES 2026 - BOJA 6/10/2025 + corrección 18/12/2025 (Coín 4/5)
+const FESTIVOS_LOCALES: {[key:string]: string[]} = {
+  "Málaga": ["19/8", "8/9"],
+  "Coín": ["4/5", "1/6"],
+  "Guaro": ["18/5", "31/8"],
+  "Alhaurín de la Torre": ["20/1", "24/6"],
+  "Alhaurín el Grande": ["29/5", "1/6"],
+  "Comares": ["12/1", "25/5"],
+  "Antequera": ["21/8", "8/9"],
+  "Villanueva de Algaidas": ["15/5", "8/9"],
+  "Campillos": ["10/7", "17/8"],
+  "Jimera de Líbar": ["7/8", "10/8"],
+  "Ronda": ["24/1", "3/9"],
+  "Yunquera": ["4/6", "7/10"],
+  "Montecorto": ["16/7", "16/10"],
+  "Pujerra": ["13/6", "3/11"],
+  "Faraján": ["10/8", "9/12"],
+  "Júzcar": ["19/3", "6/4"],
+  "Benadalid": ["27/4", "7/10"],
+  "Carratraca": ["17/8", "7/9"],
+  "Marbella": ["11/6", "19/10"],
+  "Torremolinos": ["16/7", "29/9"],
+  "Benalmádena": ["24/6", "16/7"],
+  "Benalmádena Costa": ["24/6", "16/7"],
+  "Arroyo de la Miel": ["24/6", "16/7"],
+  "Fuengirola": ["16/7", "7/10"],
+  "Mijas": ["8/9", "15/10"],
+  "Mijas Costa": ["8/9", "15/10"],
+  "Las Lagunas": ["8/9", "15/10"],
+  "Vélez-Málaga": ["24/6", "29/9"],
+  "Torre del Mar": ["24/6", "29/9"],
+  "Caleta de Vélez": ["24/6", "29/9"],
+  "Almayate": ["24/6", "29/9"],
+  "Benajarafe": ["24/6", "29/9"],
+  "Torre de Benagalbón": ["24/6", "29/9"],
+  "Almáchar": ["4/5", "27/7"],
+  "Torrox": ["5/8", "2/10"],
+  "Nerja": ["15/5", "24/6"],
+  "Rincón de la Victoria": ["2/2", "16/7"],
+  "Cuevas del Becerro": ["7/1", "31/8"],
+  "Pizarra": ["15/5", "19/8"],
+  "Campanillas": ["19/8", "8/9"],
+  "Álora": ["7/8", "8/9"],
+  "Estepona": ["15/5", "16/7"],
+  "San Pedro Alcántara": ["11/6", "19/10"],
+  "Benahavís": ["17/8", "7/10"],
+  "El Burgo": ["6/4", "28/8"],
+};
+const FESTIVOS_GENERALES = ["1/1","6/1","28/2","2/4","3/4","1/5","15/8","12/10","2/11","7/12","8/12","25/12"];
+
 const FARMACIAS: string[][] = [
 ["AGUILAR HURTADO FELISA - HURTADO AGUILAR INMACULADA","Málaga","C/. TOMÁS HEREDIA, 23 - 29001"],
 ["LEDRO CARABAÑO BLANCA","Málaga","PASEO MARÍTIMO ANTONIO MACHADO, 60 - 29002"],
@@ -186,16 +237,21 @@ export default function Page() {
   const [enviado, setEnviado] = useState(false);
   const [respuestas, setRespuestas] = useState<{[key:number]:string}>({});
 
-  // AUTOMÁTICO SEGÚN LA HORA - Diurno 9:00 a 21:30, resto De guardia
+  // AUTOMÁTICO: HORA + FESTIVO GENERAL + FESTIVO LOCAL DE LA CIUDAD ELEGIDA
   useEffect(() => {
     const ahora = new Date();
     const hora = ahora.getHours() + ahora.getMinutes() / 60;
-    if (hora >= 9 && hora < 21.5) {
-      setDiurno(true); setGuardia(false);
+    const dia = ahora.getDate() + "/" + (ahora.getMonth() + 1);
+    const festivosDeEsaCiudad = FESTIVOS_LOCALES[localidad] || [];
+    const esFestivo = FESTIVOS_GENERALES.includes(dia) || festivosDeEsaCiudad.includes(dia);
+    if (esFestivo) {
+      setFestivo(true); setDiurno(false); setGuardia(true);
+    } else if (hora >= 9 && hora < 21.5) {
+      setDiurno(true); setGuardia(false); setFestivo(false);
     } else {
-      setDiurno(false); setGuardia(true);
+      setDiurno(false); setGuardia(true); setFestivo(false);
     }
-  }, []);
+  }, [localidad]);
 
   const localidades = Array.from(new Set(FARMACIAS.map(f=>f[1]))).sort();
   const horario = [diurno?"Diurno":"", guardia?"De guardia":"", festivo?"Festivo":""].filter(Boolean).join(", ") || "Diurno";
@@ -234,6 +290,7 @@ export default function Page() {
 
           <p style={{ fontWeight: "bold", margin: "12px 0 6px", fontSize: 17 }}>Para el Chat, marcar si estamos en horario:</p>
           {guardia && !festivo && <p style={{ background: "#fef3c7", border: "1px solid #f59e0b", padding: 8, borderRadius: 8, fontSize: 13, margin: "6px 0" }}>🌙 Es de noche: las farmacias diurnas ya han cerrado. Se marcará solo <b>De guardia</b> para que solo escribas a las de guardia.</p>}
+          {festivo && <p style={{ background: "#fee2e2", border: "1px solid #ef4444", padding: 8, borderRadius: 8, fontSize: 13, margin: "6px 0" }}>📅 Hoy es <b>Festivo en {localidad || "tu ciudad"}</b>: las farmacias diurnas están cerradas. Solo quedan las de guardia.</p>}
           <div style={{ display: "flex", gap: 14, flexWrap: "wrap", fontSize: 17, fontWeight: "bold" }}>
             <label style={{ display: "flex", alignItems: "center", gap: 6 }}><input type="checkbox" checked={diurno} onChange={()=>setDiurno(!diurno)} style={{ width: 22, height: 22 }} /> ☀️ Diurno</label>
             <label style={{ display: "flex", alignItems: "center", gap: 6 }}><input type="checkbox" checked={guardia} onChange={()=>setGuardia(!guardia)} style={{ width: 22, height: 22 }} /> 🌙 De guardia</label>
