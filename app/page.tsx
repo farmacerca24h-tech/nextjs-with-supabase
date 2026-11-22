@@ -1,5 +1,5 @@
 "use client";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 
 const TELEFONO_PRUEBA = "34634467345"; // 634467345 para pruebas
 const FARMACIAS: string[][] = [
@@ -186,6 +186,17 @@ export default function Page() {
   const [enviado, setEnviado] = useState(false);
   const [respuestas, setRespuestas] = useState<{[key:number]:string}>({});
 
+  // AUTOMÁTICO SEGÚN LA HORA - Diurno 9:00 a 21:30, resto De guardia
+  useEffect(() => {
+    const ahora = new Date();
+    const hora = ahora.getHours() + ahora.getMinutes() / 60;
+    if (hora >= 9 && hora < 21.5) {
+      setDiurno(true); setGuardia(false);
+    } else {
+      setDiurno(false); setGuardia(true);
+    }
+  }, []);
+
   const localidades = Array.from(new Set(FARMACIAS.map(f=>f[1]))).sort();
   const horario = [diurno?"Diurno":"", guardia?"De guardia":"", festivo?"Festivo":""].filter(Boolean).join(", ") || "Diurno";
   const filtradas = FARMACIAS.filter(f => !localidad || f[1] === localidad);
@@ -222,6 +233,7 @@ export default function Page() {
           </select>
 
           <p style={{ fontWeight: "bold", margin: "12px 0 6px", fontSize: 17 }}>Para el Chat, marcar si estamos en horario:</p>
+          {guardia && !festivo && <p style={{ background: "#fef3c7", border: "1px solid #f59e0b", padding: 8, borderRadius: 8, fontSize: 13, margin: "6px 0" }}>🌙 Es de noche: las farmacias diurnas ya han cerrado. Se marcará solo <b>De guardia</b> para que solo escribas a las de guardia.</p>}
           <div style={{ display: "flex", gap: 14, flexWrap: "wrap", fontSize: 17, fontWeight: "bold" }}>
             <label style={{ display: "flex", alignItems: "center", gap: 6 }}><input type="checkbox" checked={diurno} onChange={()=>setDiurno(!diurno)} style={{ width: 22, height: 22 }} /> ☀️ Diurno</label>
             <label style={{ display: "flex", alignItems: "center", gap: 6 }}><input type="checkbox" checked={guardia} onChange={()=>setGuardia(!guardia)} style={{ width: 22, height: 22 }} /> 🌙 De guardia</label>
