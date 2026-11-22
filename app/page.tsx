@@ -174,6 +174,7 @@ const FARMACIAS: string[][] = [
 ["Farmacia Plaza De La Victoria","Málaga","PZA. DE LA VICTORIA, 11 - 29012"],
 ["Farmacia Fernández","Ronda","ESPINEL, 38 - 29400"],
 ];
+
 export default function Page() {
   const [vista, setVista] = useState<"cliente" | "farmacia">("cliente");
   const [localidad, setLocalidad] = useState("");
@@ -189,23 +190,25 @@ export default function Page() {
   const horario = [diurno?"Diurno":"", guardia?"De guardia":"", festivo?"Festivo":""].filter(Boolean).join(", ") || "Diurno";
   const filtradas = FARMACIAS.filter(f => !localidad || f[1] === localidad);
   const tres = filtradas.slice(0, 3);
-  const anadir = () => { if(!texto.trim()) return; setProductos([...productos, texto.trim()]); setTexto(""); setEnviado(false); };
 
-  const enviarWhatsApp = () => {
-    if(!localidad){ alert("Elige primero tu ciudad"); return; }
+  const enviar = () => {
+    if(!localidad){ alert("Elige primero tu ciudad o pedanía"); return; }
+    if(texto.trim()){ setProductos([...productos, texto.trim()]); setTexto(""); }
     setEnviado(true);
-    const textoPlano = `Hola, soy FarmaCerca 24h. Cliente en ${localidad} (${horario}) pregunta:\n` + productos.map(p=>`- ${p}`).join("\n") + `\nContesta a este mismo WhatsApp con: TENGO / NO TENGO / BAJO PEDIDO`;
+    const lista = texto.trim() ? [...productos, texto.trim()] : productos;
+    const textoPlano = `Hola, soy FarmaCerca 24h. Cliente en ${localidad} (${horario}) pregunta:\n` + (lista.length ? lista.map(p=>`- ${p}`).join("\n") : `- Consulta general`) + `\nContesta con: TENGO / NO TENGO / BAJO PEDIDO`;
     window.open(`https://wa.me/${TELEFONO_PRUEBA}?text=${encodeURIComponent(textoPlano)}`, "_blank");
   };
 
   return (
     <main style={{ maxWidth: 480, margin: "0 auto", padding: 12, fontFamily: "sans-serif", background: "#fff" }}>
-      <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
-        <img src="/logo.png" alt="FarmaCerca 24h" style={{ height: "52px", width: "auto" }} />
-        <div style={{ fontSize: 14 }}>A un mensaje de ti</div>
+      {/* HEADER - EXACTO A LA FOTO */}
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 8 }}>
+        <img src="/logo.png" alt="Farmacerca 24h - A un mensaje de ti" style={{ height: "56px", width: "auto", display: "block" }} />
+        <button onClick={()=>alert("Para descargar el acceso directo: en tu móvil pulsa Compartir y luego Añadir a pantalla de inicio.")} style={{ background: "#0090ff", color: "#fff", border: "none", padding: "10px 12px", borderRadius: 10, fontWeight: "bold", fontSize: 14, whiteSpace: "nowrap" }}>⬇ Descargar acceso directo</button>
       </div>
 
-      {/* CAMBIO DE ROL SOLO PARA PRUEBAS - NO BORRA NADA */}
+      {/* BOTONES PRUEBA CLIENTE / FARMACIA - solo para probar, no se ve en la foto final */}
       <div style={{ display: "flex", gap: 8, margin: "12px 0" }}>
         <button onClick={()=>setVista("cliente")} style={{ flex: 1, padding: 10, borderRadius: 10, background: vista==="cliente" ? "#16a34a" : "#eee", color: vista==="cliente" ? "#fff" : "#000", border: "none", fontWeight: "bold" }}>👤 Soy CLIENTE</button>
         <button onClick={()=>setVista("farmacia")} style={{ flex: 1, padding: 10, borderRadius: 10, background: vista==="farmacia" ? "#0ea5e9" : "#eee", color: vista==="farmacia" ? "#fff" : "#000", border: "none", fontWeight: "bold" }}>🏪 Soy FARMACIA (Prueba)</button>
@@ -213,36 +216,63 @@ export default function Page() {
 
       {vista === "cliente" && (
         <>
-          <p style={{ fontSize: 13, background: "#dcfce7", padding: 8, borderRadius: 8 }}>✅ MODO PRUEBA: <b>{FARMACIAS.length} farmacias</b> - Todas con WhatsApp <b>634467345</b> {localidad ? `• ${filtradas.length} en ${localidad}` : ""}</p>
-          <p style={{ fontWeight: "bold" }}>Elige:</p>
-          <select value={localidad} onChange={(e)=>{setLocalidad(e.target.value); setEnviado(false);}} style={{ width: "100%", padding: 14, borderRadius: 12, border: "2px solid #16a34a", fontSize: 16 }}>
+          <p style={{ fontWeight: "bold", margin: "8px 0 4px", fontSize: 18 }}>Elige:</p>
+          <select value={localidad} onChange={(e)=>{setLocalidad(e.target.value); setEnviado(false);}} style={{ width: "100%", padding: 14, borderRadius: 12, border: "2px solid #16a34a", fontSize: 16, background: "#f0fdf4" }}>
             <option value="">📍 Ciudad o pedanía...</option>
-            {localidades.map(l=><option key={l} value={l}>{l}</option>)}
+            {localidades.map(l=><option key={l} value={l}>{l} ({FARMACIAS.filter(f=>f[1]===l).length})</option>)}
           </select>
-          <p style={{ fontWeight: "bold" }}>Horario:</p>
-          <div style={{ display: "flex", gap: 14, flexWrap: "wrap" }}>
-            <label><input type="checkbox" checked={diurno} onChange={()=>setDiurno(!diurno)} /> ☀️ Diurno</label>
-            <label><input type="checkbox" checked={guardia} onChange={()=>setGuardia(!guardia)} /> 🌙 De guardia</label>
-            <label><input type="checkbox" checked={festivo} onChange={()=>setFestivo(!festivo)} /> 📅 Festivo</label>
+
+          <p style={{ fontWeight: "bold", margin: "12px 0 6px", fontSize: 17 }}>Para el Chat, marcar si estamos en horario:</p>
+          <div style={{ display: "flex", gap: 14, flexWrap: "wrap", fontSize: 17, fontWeight: "bold" }}>
+            <label style={{ display: "flex", alignItems: "center", gap: 6 }}><input type="checkbox" checked={diurno} onChange={()=>setDiurno(!diurno)} style={{ width: 22, height: 22 }} /> ☀️ Diurno</label>
+            <label style={{ display: "flex", alignItems: "center", gap: 6 }}><input type="checkbox" checked={guardia} onChange={()=>setGuardia(!guardia)} style={{ width: 22, height: 22 }} /> 🌙 De guardia</label>
+            <label style={{ display: "flex", alignItems: "center", gap: 6 }}><input type="checkbox" checked={festivo} onChange={()=>setFestivo(!festivo)} style={{ width: 22, height: 22 }} /> 📅 Festivo</label>
           </div>
-          <h3 style={{ color: "#16a34a" }}>💬 Chat de consulta</h3>
-          <div style={{ display: "flex", border: "1px solid #16a34a", borderRadius: 12, overflow: "hidden" }}>
-            <input value={texto} onChange={(e)=>setTexto(e.target.value)} onKeyDown={(e)=>{if(e.key==="Enter") anadir();}} placeholder="¿Qué necesitas? Escribe el producto..." style={{ flex: 1, padding: 14, border: "none" }} />
-            <button onClick={anadir} style={{ background: "#16a34a", color: "#fff", border: "none", padding: "0 18px", fontWeight: "bold" }}>Añadir</button>
+
+          <h3 style={{ color: "#16a34a", fontSize: 22, margin: "14px 0 8px" }}>💬 Chat de consulta</h3>
+          <div style={{ display: "flex", border: "2px solid #16a34a", borderRadius: 12, overflow: "hidden", background: "#f0fdf4" }}>
+            <input value={texto} onChange={(e)=>setTexto(e.target.value)} onKeyDown={(e)=>{if(e.key==="Enter") enviar();}} placeholder="🔍 ¿Qué necesitas? Escribe el producto..." style={{ flex: 1, padding: 14, border: "none", background: "transparent", fontSize: 16 }} />
+            <button onClick={enviar} style={{ background: "#16a34a", color: "#fff", border: "none", padding: "0 22px", fontWeight: "bold", fontSize: 18 }}>Enviar</button>
           </div>
+
           {productos.map((p,i)=>(
             <div key={i} style={{ display: "flex", justifyContent: "space-between", background: "#f0fdf4", padding: 12, borderRadius: 10, marginTop: 8, border: "1px solid #bbf7d0" }}>
-              <span>💊 {p}</span><button onClick={()=>setProductos(productos.filter((_,x)=>x!==i))} style={{ border: "none", background: "none" }}>❌</button>
+              <span>💊 {p}</span><button onClick={()=>setProductos(productos.filter((_,x)=>x!==i))} style={{ border: "none", background: "none", fontSize: 16 }}>❌</button>
             </div>
           ))}
-          {productos.length>0 && <button onClick={enviarWhatsApp} style={{ width: "100%", padding: 14, marginTop: 10, background: "#16a34a", color: "#fff", border: "none", borderRadius: 12, fontWeight: "bold" }}>Buscar en 3 farmacias a la vez →</button>}
-          {enviado && tres.map((f, idx)=>(
-            <div key={idx} style={{ border: "2px solid #16a34a", borderRadius: 14, padding: 12, marginBottom: 12, marginTop: 12 }}>
-              <b>{idx+1}. Farmacia {f[0] || "Sin nombre"}</b><div style={{ fontSize: 13 }}>📍 {f[2]}<br/>📞 PRUEBA: 634467345</div>
-              <div style={{ marginTop: 8, background: "#f0fdf4", padding: 8, borderRadius: 8 }}><b>Respuesta:</b> {respuestas[idx] || "⏳ Esperando que la farmacia pulse..."}</div>
-              <button onClick={()=>window.open(`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent("Farmacia "+f[0]+" "+f[2])}`, "_blank")} style={{ background: "#0ea5e9", color: "#fff", border: "none", padding: "8px 10px", borderRadius: 10, marginTop: 8, fontWeight: "bold" }}>✈️ Cómo llegar</button>
+
+          <p style={{ fontWeight: "bold", fontSize: 18, margin: "14px 0 4px" }}>✓ en stock &nbsp; <span style={{ color: "#dc2626" }}>✗</span> Sin stock &nbsp; 👁 otro &nbsp; ✏️ Bajo pedido</p>
+          <h3 style={{ color: "#16a34a", fontSize: 22, margin: "6px 0 8px" }}>💬 Obteniendo respuestas...</h3>
+
+          {(enviado ? tres : tres).map((f, idx)=>(
+            <div key={idx} style={{ border: "2px solid #16a34a", borderRadius: 14, padding: 12, marginBottom: 12, display: "flex", gap: 10 }}>
+              <div style={{ background: "#16a34a", color: "#fff", width: 40, height: 40, minWidth: 40, borderRadius: "50%", display: "flex", alignItems: "center", justifyContent: "center", fontWeight: "bold", fontSize: 22 }}>{idx+1}</div>
+              <div style={{ flex: 1 }}>
+                <b style={{ fontSize: 18 }}>{f[0]}</b><br /><span style={{ fontSize: 15 }}>📍 {f[2]} - {f[1]}</span><br />
+                <button onClick={()=>window.open(`https://wa.me/${TELEFONO_PRUEBA}?text=${encodeURIComponent(`Hola ${f[0]}, soy cliente de FarmaCerca 24h de ${localidad || f[1]}. Horario: ${horario}. Necesito: ${productos.join(", ") || "Consulta general"}. ¿Lo tenéis en stock? Gracias`)}`, "_blank")} style={{ background: "#16a34a", color: "#fff", border: "none", padding: "10px 18px", borderRadius: 10, fontWeight: "bold", marginTop: 8 }}>💬 Chat</button>
+              </div>
+              <div style={{ borderLeft: "2px solid #ccc", paddingLeft: 8, fontSize: 14, minWidth: 105 }}>
+                <div>{productos[0] || "Ibuprofeno 600mg"}</div>
+                <div>{productos[1] || "Paracetamol 1g"}</div>
+                <div>{productos[2] || "Crema"}</div>
+                <button onClick={()=>window.open(`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent("Farmacia "+f[0]+" "+f[2])}`, "_blank")} style={{ background: "#0090ff", color: "#fff", border: "none", padding: "8px 10px", borderRadius: 10, marginTop: 8, fontWeight: "bold", width: "100%" }}>✈ Cómo llegar</button>
+              </div>
+              <div style={{ fontSize: 20, lineHeight: 1.6, textAlign: "center" }}>✓<br />✏️<br />👁</div>
             </div>
           ))}
+
+          <div style={{ display: "flex", gap: 8, marginTop: 4 }}>
+            <button onClick={()=>{setGuardia(true); setDiurno(false);}} style={{ flex: 1, padding: 12, borderRadius: 12, fontWeight: "bold", background: "#dbeafe", border: "2px solid #0090ff", fontSize: 15 }}>🌙 Farmacias de guardia →<br /><span style={{ fontWeight: "normal", fontSize: 13 }}>Guardias de hoy</span></button>
+            <button onClick={()=>{setGuardia(false); setDiurno(true);}} style={{ flex: 1, padding: 12, borderRadius: 12, fontWeight: "bold", background: "#e6f7ee", border: "2px solid #16a34a", fontSize: 15 }}>📍 Farmacias cercanas →<br /><span style={{ fontWeight: "normal", fontSize: 13 }}>Por proximidad</span></button>
+          </div>
+
+          <div style={{ background: "#e6f7ee", border: "2px solid #16a34a", borderRadius: 12, padding: 12, marginTop: 12 }}>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 8 }}>
+              <div><b>Contacto FarmaCerca 24 h</b><br /><span style={{ fontSize: 14 }}>¿Dudas o ayuda? Pulsa para escribirnos.</span></div>
+              <button onClick={()=>window.open(`https://wa.me/${TELEFONO_PRUEBA}?text=${encodeURIComponent("Hola FarmaCerca 24h, tengo una duda, ¿me ayudáis?")}`, "_blank")} style={{ background: "#fff", color: "#16a34a", border: "2px solid #16a34a", padding: "8px 12px", borderRadius: 10, fontWeight: "bold" }}>💬 Chat →</button>
+            </div>
+            <div style={{ background: "#fff", border: "1px solid #16a34a", borderRadius: 8, padding: 10, marginTop: 8, display: "flex", justifyContent: "space-between" }}><span>✉️ E-mail: contacto@farmacerca24h.es</span><span style={{ color: "#16a34a", fontWeight: "bold" }}>Pulsa →</span></div>
+          </div>
         </>
       )}
 
@@ -254,10 +284,9 @@ export default function Page() {
             {productos.length===0 ? <i>- (Ejemplo) Ibuprofeno 600mg - escribe un producto como cliente primero</i> : productos.map((p,i)=><div key={i}>- {p}</div>)}
             <p><b>¿Lo tienes? Pulsa una opción:</b></p>
           </div>
-          {/* ENCUESTA - 3 botones, uno por cada una de las 3 farmacias */}
           {tres.map((f, idx)=>(
             <div key={idx} style={{ border: "1px solid #ccc", borderRadius: 12, padding: 10, marginTop: 10 }}>
-              <b>{idx+1}. {f[0] || "Farmacia " + (idx+1)} - {f[1]}</b>
+              <b>{idx+1}. {f[0]} - {f[1]}</b>
               <div style={{ display: "flex", gap: 6, marginTop: 8 }}>
                 <button onClick={()=>{setRespuestas({...respuestas, [idx]: "✅ TENGO"}); setVista("cliente");}} style={{ flex: 1, padding: 10, background: "#16a34a", color: "#fff", border: "none", borderRadius: 10, fontWeight: "bold" }}>✅ TENGO</button>
                 <button onClick={()=>{setRespuestas({...respuestas, [idx]: "❌ NO TENGO"}); setVista("cliente");}} style={{ flex: 1, padding: 10, background: "#ef4444", color: "#fff", border: "none", borderRadius: 10, fontWeight: "bold" }}>❌ NO TENGO</button>
@@ -265,9 +294,16 @@ export default function Page() {
               </div>
             </div>
           ))}
-          <p style={{ fontSize: 12, marginTop: 10 }}>Al pulsar, vuelve a vista cliente y ves la respuesta. Así probamos la encuesta sin API.</p>
         </div>
       )}
+
+      {/* PIE - EXACTO A LA FOTO */}
+      <footer style={{ textAlign: "center", padding: "18px 0 8px" }}>
+        <img src="/logo.png" alt="Farmacerca 24h - A un mensaje de ti" style={{ height: "44px", width: "auto", display: "block", margin: "0 auto" }} />
+        <div style={{ background: "#e6f7ee", border: "2px solid #16a34a", borderRadius: 20, padding: 10, margin: "12px 0", fontWeight: "bold", fontSize: 16 }}>Aviso Legal &nbsp;•&nbsp; Privacidad &nbsp;•&nbsp; Términos &nbsp;•&nbsp; Cookies</div>
+        <p style={{ fontSize: 13 }}>Farmacerca 24 h solo informa de disponibilidad.<br />La venta y dispensación la realiza la farmacia autorizada.</p>
+        <p style={{ fontSize: 12, color: "#666" }}>{FARMACIAS.length} farmacias • {localidades.length} ciudades y pedanías</p>
+      </footer>
     </main>
   );
 }
