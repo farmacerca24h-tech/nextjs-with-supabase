@@ -117,7 +117,10 @@ export default function Page() {
   return (
     <div style={{ fontFamily: "Arial", maxWidth: 600, margin: "0 auto", padding: 12 }}>
       <header style={{ display: "flex", justifyContent: "space-between", alignItems: "center", borderBottom: "2px solid #00a651", paddingBottom: 10 }}>
-        <div style={{ fontWeight: "bold", fontSize: 22 }}>➕ Farmacerca <span style={{ background: "#00a651", color: "#fff", padding: "2px 8px", borderRadius: 10 }}>24h</span><div style={{ fontSize: 13, fontWeight: "normal" }}>A un mensaje de ti</div></div>
+        <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+          <img src="/logo.png" alt="FarmaCerca 24h" style={{ height: "48px", width: "auto" }} />
+          <div style={{ fontSize: 13, fontWeight: "normal" }}>A un mensaje de ti</div>
+        </div>
         <button style={{ background: "#0090ff", color: "#fff", border: 0, padding: "8px 12px", borderRadius: 8, fontWeight: "bold" }}>⬇ Descargar acceso directo</button>
       </header>
 
@@ -213,7 +216,10 @@ export default function Page() {
       </div>
 
       <footer style={{ textAlign: "center", padding: 15, fontSize: 13 }}>
-        <div style={{ fontWeight: "bold", fontSize: 22 }}>➕ Farmacerca <span style={{ background: "#00a651", color: "#fff", padding: "2px 8px", borderRadius: 10 }}>24h</span><div style={{ fontSize: 13, fontWeight: "normal" }}>A un mensaje de ti</div></div>
+        <div style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 8 }}>
+          <img src="/logo.png" alt="FarmaCerca 24h" style={{ height: "48px", width: "auto" }} />
+          <div style={{ fontSize: 13, fontWeight: "normal" }}>A un mensaje de ti</div>
+        </div>
         <div style={{ background: "#e6f7ee", border: "1px solid #00a651", borderRadius: 10, padding: 10, margin: 10 }}><b>Aviso Legal • Privacidad • Términos • Cookies</b></div>
         <p>FarmaCerca 24 h solo informa de disponibilidad.<br />La venta y dispensación la realiza la farmacia autorizada.</p>
       </footer>
