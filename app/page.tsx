@@ -323,10 +323,12 @@ export default function Page() {
           <p style={{ fontWeight: "bold", margin: "12px 0 6px", fontSize: 17 }}>Para el Chat, marcar si estamos en horario:</p>
           {guardia && !festivo && <p style={{ background: "#fef3c7", border: "1px solid #f59e0b", padding: 8, borderRadius: 8, fontSize: 13, margin: "6px 0" }}>🌙 Es de noche: las farmacias diurnas ya han cerrado. Se marcará solo <b>De guardia</b> para que solo escribas a las de guardia.</p>}
           {festivo && <p style={{ background: "#fee2e2", border: "1px solid #ef4444", padding: 8, borderRadius: 8, fontSize: 13, margin: "6px 0" }}>📅 Hoy es <b>Festivo en {localidad || "tu ciudad"}</b>: las farmacias diurnas están cerradas. Solo quedan las de guardia.</p>}
-          <div style={{ display: "flex", gap: 14, flexWrap: "wrap", fontSize: 17, fontWeight: "bold" }}>
-            <label style={{ display: "flex", alignItems: "center", gap: 6 }}><input type="checkbox" checked={diurno} onChange={()=>setDiurno(!diurno)} style={{ width: 22, height: 22 }} /> ☀️ Diurno</label>
-            <label style={{ display: "flex", alignItems: "center", gap: 6 }}><input type="checkbox" checked={guardia} onChange={()=>setGuardia(!guardia)} style={{ width: 22, height: 22 }} /> 🌙 De guardia</label>
-            <label style={{ display: "flex", alignItems: "center", gap: 6 }}><input type="checkbox" checked={festivo} onChange={()=>setFestivo(!festivo)} style={{ width: 22, height: 22 }} /> 📅 Festivo</label>
+
+          {/* DIURNO / GUARDIA / FESTIVO - LOS 3 EN 1 LÍNEA, SIN SALIRSE */}
+          <div style={{ display: "flex", flexWrap: "nowrap", justifyContent: "space-between", alignItems: "center", gap: 4, width: "100%", boxSizing: "border-box", fontSize: 13, fontWeight: "bold" }}>
+            <label style={{ display: "flex", alignItems: "center", gap: 3, whiteSpace: "nowrap", flexShrink: 0 }}><input type="checkbox" checked={diurno} onChange={()=>setDiurno(!diurno)} style={{ width: 18, height: 18, margin: 0 }} /> ☀️ Diurno</label>
+            <label style={{ display: "flex", alignItems: "center", gap: 3, whiteSpace: "nowrap", flexShrink: 0 }}><input type="checkbox" checked={guardia} onChange={()=>setGuardia(!guardia)} style={{ width: 18, height: 18, margin: 0 }} /> 🌙 Guardia</label>
+            <label style={{ display: "flex", alignItems: "center", gap: 3, whiteSpace: "nowrap", flexShrink: 0 }}><input type="checkbox" checked={festivo} onChange={()=>setFestivo(!festivo)} style={{ width: 18, height: 18, margin: 0 }} /> 📅 Festivo</label>
           </div>
 
           <h3 style={{ color: "#16a34a", fontSize: 22, margin: "14px 0 8px" }}>💬 Chat de consulta</h3>
