@@ -281,35 +281,27 @@ export default function Page() {
     window.open(`https://wa.me/${TELEFONO_PRUEBA}?text=${encodeURIComponent(textoPlano)}`, "_blank");
   };
 
-  // FARMACIAS CERCANAS - ABRE GOOGLE MAPS CON TU UBICACIÓN REAL
+  // FARMACIAS CERCANAS - USA LA UBICACIÓN DE GOOGLE MAPS, NO PIDE PERMISO EN TU WEB
   const buscarCercanas = () => {
     setGuardia(false); setDiurno(true);
-    // Si el móvil da permiso, busca donde estás de verdad
-    if (navigator.geolocation) {
-      navigator.geolocation.getCurrentPosition(
-        (pos) => {
-          const lat = pos.coords.latitude;
-          const lng = pos.coords.longitude;
-          window.open(`https://www.google.com/maps/search/farmacias/@${lat},${lng},15z`, "_blank");
-        },
-        () => {
-          // Si no das permiso, busca en tu ciudad elegida
-          const ciudad = localidad || "Málaga";
-          window.open(`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent("farmacias en " + ciudad)}`, "_blank");
-        },
-        { timeout: 5000 }
-      );
+    if (localidad) {
+      // Si has elegido ciudad, busca en esa ciudad
+      window.open(`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent("farmacias en " + localidad)}`, "_blank");
     } else {
-      const ciudad = localidad || "Málaga";
-      window.open(`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent("farmacias en " + ciudad)}`, "_blank");
+      // Si NO has elegido ciudad, Google Maps usa tu ubicación real "cerca de mí"
+      // Así no sale el aviso de Chrome ni te manda a Málaga por defecto
+      window.open(`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent("farmacias cerca de mi")}`, "_blank");
     }
   };
 
   // FARMACIAS DE GUARDIA - TAMBIÉN ABRE GOOGLE MAPS
   const buscarGuardia = () => {
     setGuardia(true); setDiurno(false);
-    const ciudad = localidad || "Málaga";
-    window.open(`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent("farmacia de guardia en " + ciudad)}`, "_blank");
+    if (localidad) {
+      window.open(`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent("farmacia de guardia en " + localidad)}`, "_blank");
+    } else {
+      window.open(`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent("farmacia de guardia cerca de mi")}`, "_blank");
+    }
   };
 
   return (
