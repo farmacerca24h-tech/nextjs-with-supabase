@@ -268,11 +268,11 @@ export default function Page() {
   };
 
   return (
-    <main style={{ maxWidth: 480, margin: "0 auto", padding: 12, fontFamily: "sans-serif", background: "#fff" }}>
-      {/* HEADER - LOGO GRANDE COMO EN LA FOTO */}
-      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 8 }}>
-        <img src="/logo.png" alt="Farmacerca 24h - A un mensaje de ti" style={{ height: "80px", width: "auto", display: "block" }} />
-        <button onClick={()=>alert("Para descargar el acceso directo: en tu móvil pulsa Compartir y luego Añadir a pantalla de inicio.")} style={{ background: "#0090ff", color: "#fff", border: "none", padding: "10px 12px", borderRadius: 10, fontWeight: "bold", fontSize: 14, whiteSpace: "nowrap" }}>⬇ Descargar acceso directo</button>
+    <main style={{ maxWidth: 480, width: "100%", margin: "0 auto", padding: 12, fontFamily: "sans-serif", background: "#fff", boxSizing: "border-box", overflowX: "hidden" }}>
+      {/* HEADER - ARREGLADO PARA MÓVIL, YA NO SE SALE */}
+      <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 8, width: "100%", boxSizing: "border-box" }}>
+        <img src="/logo.png" alt="Farmacerca 24h - A un mensaje de ti" style={{ height: "80px", width: "auto", maxWidth: "100%", display: "block" }} />
+        <button onClick={()=>alert("Para descargar el acceso directo: en tu móvil pulsa Compartir y luego Añadir a pantalla de inicio.")} style={{ background: "#0090ff", color: "#fff", border: "none", padding: "12px 12px", borderRadius: 10, fontWeight: "bold", fontSize: 14, width: "100%", boxSizing: "border-box", whiteSpace: "normal", textAlign: "center" }}>⬇ Descargar acceso directo</button>
       </div>
 
       <div style={{ display: "flex", gap: 8, margin: "12px 0" }}>
@@ -283,7 +283,7 @@ export default function Page() {
       {vista === "cliente" && (
         <>
           <p style={{ fontWeight: "bold", margin: "8px 0 4px", fontSize: 18 }}>Elige:</p>
-          <select value={localidad} onChange={(e)=>{setLocalidad(e.target.value); setEnviado(false);}} style={{ width: "100%", padding: 14, borderRadius: 12, border: "2px solid #16a34a", fontSize: 16, background: "#f0fdf4" }}>
+          <select value={localidad} onChange={(e)=>{setLocalidad(e.target.value); setEnviado(false);}} style={{ width: "100%", padding: 14, borderRadius: 12, border: "2px solid #16a34a", fontSize: 16, background: "#f0fdf4", boxSizing: "border-box" }}>
             <option value="">📍 Ciudad o pedanía...</option>
             {localidades.map(l=><option key={l} value={l}>{l} ({FARMACIAS.filter(f=>f[1]===l).length})</option>)}
           </select>
@@ -298,9 +298,9 @@ export default function Page() {
           </div>
 
           <h3 style={{ color: "#16a34a", fontSize: 22, margin: "14px 0 8px" }}>💬 Chat de consulta</h3>
-          <div style={{ display: "flex", border: "2px solid #16a34a", borderRadius: 12, overflow: "hidden", background: "#f0fdf4" }}>
-            <input value={texto} onChange={(e)=>setTexto(e.target.value)} onKeyDown={(e)=>{if(e.key==="Enter") enviar();}} placeholder="🔍 ¿Qué necesitas? Escribe el producto..." style={{ flex: 1, padding: 14, border: "none", background: "transparent", fontSize: 16 }} />
-            <button onClick={enviar} style={{ background: "#16a34a", color: "#fff", border: "none", padding: "0 22px", fontWeight: "bold", fontSize: 18 }}>Enviar</button>
+          <div style={{ display: "flex", border: "2px solid #16a34a", borderRadius: 12, overflow: "hidden", background: "#f0fdf4", width: "100%", boxSizing: "border-box" }}>
+            <input value={texto} onChange={(e)=>setTexto(e.target.value)} onKeyDown={(e)=>{if(e.key==="Enter") enviar();}} placeholder="🔍 ¿Qué necesitas? Escribe el producto..." style={{ flex: 1, minWidth: 0, padding: 14, border: "none", background: "transparent", fontSize: 16 }} />
+            <button onClick={enviar} style={{ background: "#16a34a", color: "#fff", border: "none", padding: "0 22px", fontWeight: "bold", fontSize: 18, whiteSpace: "nowrap" }}>Enviar</button>
           </div>
 
           {productos.map((p,i)=>(
@@ -309,14 +309,13 @@ export default function Page() {
             </div>
           ))}
 
-          {/* DESDE AQUÍ TODO MÁS PEQUEÑO Y COMPACTO, COMO EN TU FOTO */}
           <p style={{ fontWeight: "bold", fontSize: 14, margin: "10px 0 2px" }}>✓ en stock &nbsp; <span style={{ color: "#dc2626" }}>✗</span> Sin stock &nbsp; 👁 otro &nbsp; ✏️ Bajo pedido</p>
           <h3 style={{ color: "#16a34a", fontSize: 18, margin: "4px 0 6px" }}>💬 Obteniendo respuestas...</h3>
 
           {tres.map((f, idx)=>(
-            <div key={idx} style={{ border: "1.5px solid #16a34a", borderRadius: 10, padding: 8, marginBottom: 8, display: "flex", gap: 8 }}>
+            <div key={idx} style={{ border: "1.5px solid #16a34a", borderRadius: 10, padding: 8, marginBottom: 8, display: "flex", gap: 8, boxSizing: "border-box" }}>
               <div style={{ background: "#16a34a", color: "#fff", width: 32, height: 32, minWidth: 32, borderRadius: "50%", display: "flex", alignItems: "center", justifyContent: "center", fontWeight: "bold", fontSize: 18 }}>{idx+1}</div>
-              <div style={{ flex: 1 }}>
+              <div style={{ flex: 1, minWidth: 0 }}>
                 <b style={{ fontSize: 15 }}>{f[0]}</b><br /><span style={{ fontSize: 13 }}>📍 {f[2]} - {f[1]}</span><br />
                 <button onClick={()=>window.open(`https://wa.me/${TELEFONO_PRUEBA}?text=${encodeURIComponent(`Hola ${f[0]}, soy cliente de FarmaCerca 24h de ${localidad || f[1]}. Horario: ${horario}. Necesito: ${productos.join(", ") || "Consulta general"}. ¿Lo tenéis en stock? Gracias`)}`, "_blank")} style={{ background: "#16a34a", color: "#fff", border: "none", padding: "6px 12px", borderRadius: 8, fontWeight: "bold", marginTop: 6, fontSize: 13 }}>💬 Chat</button>
               </div>
@@ -338,7 +337,7 @@ export default function Page() {
           <div style={{ background: "#e6f7ee", border: "1.5px solid #16a34a", borderRadius: 10, padding: 8, marginTop: 8 }}>
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 8 }}>
               <div style={{ fontSize: 13 }}><b>Contacto FarmaCerca 24 h</b><br /><span style={{ fontSize: 12 }}>¿Dudas o ayuda? Pulsa para escribirnos.</span></div>
-              <button onClick={()=>window.open(`https://wa.me/${TELEFONO_PRUEBA}?text=${encodeURIComponent("Hola FarmaCerca 24h, tengo una duda, ¿me ayudáis?")}`, "_blank")} style={{ background: "#fff", color: "#16a34a", border: "1.5px solid #16a34a", padding: "6px 10px", borderRadius: 8, fontWeight: "bold", fontSize: 13 }}>💬 Chat →</button>
+              <button onClick={()=>window.open(`https://wa.me/${TELEFONO_PRUEBA}?text=${encodeURIComponent("Hola FarmaCerca 24h, tengo una duda, ¿me ayudáis?")}`, "_blank")} style={{ background: "#fff", color: "#16a34a", border: "1.5px solid #16a34a", padding: "6px 10px", borderRadius: 8, fontWeight: "bold", fontSize: 13, whiteSpace: "nowrap" }}>💬 Chat →</button>
             </div>
             <div style={{ background: "#fff", border: "1px solid #16a34a", borderRadius: 8, padding: 8, marginTop: 6, display: "flex", justifyContent: "space-between", fontSize: 13 }}><span>✉️ E-mail: contacto@farmacerca24h.es</span><span style={{ color: "#16a34a", fontWeight: "bold" }}>Pulsa →</span></div>
           </div>
