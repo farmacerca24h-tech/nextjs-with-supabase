@@ -281,6 +281,37 @@ export default function Page() {
     window.open(`https://wa.me/${TELEFONO_PRUEBA}?text=${encodeURIComponent(textoPlano)}`, "_blank");
   };
 
+  // FARMACIAS CERCANAS - ABRE GOOGLE MAPS CON TU UBICACIÓN REAL
+  const buscarCercanas = () => {
+    setGuardia(false); setDiurno(true);
+    // Si el móvil da permiso, busca donde estás de verdad
+    if (navigator.geolocation) {
+      navigator.geolocation.getCurrentPosition(
+        (pos) => {
+          const lat = pos.coords.latitude;
+          const lng = pos.coords.longitude;
+          window.open(`https://www.google.com/maps/search/farmacias/@${lat},${lng},15z`, "_blank");
+        },
+        () => {
+          // Si no das permiso, busca en tu ciudad elegida
+          const ciudad = localidad || "Málaga";
+          window.open(`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent("farmacias en " + ciudad)}`, "_blank");
+        },
+        { timeout: 5000 }
+      );
+    } else {
+      const ciudad = localidad || "Málaga";
+      window.open(`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent("farmacias en " + ciudad)}`, "_blank");
+    }
+  };
+
+  // FARMACIAS DE GUARDIA - TAMBIÉN ABRE GOOGLE MAPS
+  const buscarGuardia = () => {
+    setGuardia(true); setDiurno(false);
+    const ciudad = localidad || "Málaga";
+    window.open(`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent("farmacia de guardia en " + ciudad)}`, "_blank");
+  };
+
   return (
     <main style={{ maxWidth: 480, width: "100%", margin: "0 auto", padding: 12, fontFamily: "sans-serif", background: "#fff", boxSizing: "border-box", overflowX: "hidden" }}>
       {/* HEADER - ARREGLADO PARA MÓVIL, YA NO SE SALE */}
@@ -382,8 +413,8 @@ export default function Page() {
           ))}
 
           <div style={{ display: "flex", gap: 8, marginTop: 2 }}>
-            <button onClick={()=>{setGuardia(true); setDiurno(false);}} style={{ flex: 1, padding: 8, borderRadius: 10, fontWeight: "bold", background: "#dbeafe", border: "1.5px solid #0090ff", fontSize: 13 }}>🌙 Farmacias de guardia →<br /><span style={{ fontWeight: "normal", fontSize: 11 }}>Guardias de hoy</span></button>
-            <button onClick={()=>{setGuardia(false); setDiurno(true);}} style={{ flex: 1, padding: 8, borderRadius: 10, fontWeight: "bold", background: "#e6f7ee", border: "1.5px solid #16a34a", fontSize: 13 }}>📍 Farmacias cercanas →<br /><span style={{ fontWeight: "normal", fontSize: 11 }}>Por proximidad</span></button>
+            <button onClick={buscarGuardia} style={{ flex: 1, padding: 8, borderRadius: 10, fontWeight: "bold", background: "#dbeafe", border: "1.5px solid #0090ff", fontSize: 13 }}>🌙 Farmacias de guardia →<br /><span style={{ fontWeight: "normal", fontSize: 11 }}>Guardias de hoy en Maps</span></button>
+            <button onClick={buscarCercanas} style={{ flex: 1, padding: 8, borderRadius: 10, fontWeight: "bold", background: "#e6f7ee", border: "1.5px solid #16a34a", fontSize: 13 }}>📍 Farmacias cercanas →<br /><span style={{ fontWeight: "normal", fontSize: 11 }}>Cerca de ti en Maps</span></button>
           </div>
 
           <div style={{ background: "#e6f7ee", border: "1.5px solid #16a34a", borderRadius: 10, padding: 8, marginTop: 8 }}>
