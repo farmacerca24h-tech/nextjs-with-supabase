@@ -346,20 +346,31 @@ export default function Page() {
           <p style={{ fontWeight: "bold", fontSize: 14, margin: "10px 0 2px" }}>✓ en stock &nbsp; <span style={{ color: "#dc2626" }}>✗</span> Sin stock &nbsp; 👁 otro &nbsp; ✏️ Bajo pedido</p>
           <h3 style={{ color: "#16a34a", fontSize: 18, margin: "4px 0 6px" }}>💬 Obteniendo respuestas...</h3>
 
+          {/* RECUADROS DE FARMACIAS - TODOS IGUALES, PRODUCTO CENTRADO, BOTONES ABAJO ALINEADOS */}
           {tres.map((f, idx)=>(
-            <div key={idx} style={{ border: "1.5px solid #16a34a", borderRadius: 10, padding: 8, marginBottom: 8, display: "flex", gap: 8, boxSizing: "border-box" }}>
-              <div style={{ background: "#16a34a", color: "#fff", width: 32, height: 32, minWidth: 32, borderRadius: "50%", display: "flex", alignItems: "center", justifyContent: "center", fontWeight: "bold", fontSize: 18 }}>{idx+1}</div>
-              <div style={{ flex: 1, minWidth: 0 }}>
-                <b style={{ fontSize: 15 }}>{f[0]}</b><br /><span style={{ fontSize: 13 }}>📍 {f[2]} - {f[1]}</span><br />
-                <button onClick={()=>window.open(`https://wa.me/${TELEFONO_PRUEBA}?text=${encodeURIComponent(`Hola ${f[0]}, soy cliente de FarmaCerca 24h de ${localidad || f[1]}. Horario: ${horario}. Necesito: ${productos.join(", ") || "Consulta general"}. ¿Lo tenéis en stock? Gracias`)}`, "_blank")} style={{ background: "#16a34a", color: "#fff", border: "none", padding: "6px 12px", borderRadius: 8, fontWeight: "bold", marginTop: 6, fontSize: 13 }}>💬 Chat</button>
+            <div key={idx} style={{ border: "1.5px solid #16a34a", borderRadius: 10, padding: 8, marginBottom: 8, display: "flex", gap: 8, boxSizing: "border-box", minHeight: 132, alignItems: "stretch" }}>
+              <div style={{ background: "#16a34a", color: "#fff", width: 32, height: 32, minWidth: 32, borderRadius: "50%", display: "flex", alignItems: "center", justifyContent: "center", fontWeight: "bold", fontSize: 18, alignSelf: "flex-start" }}>{idx+1}</div>
+
+              {/* COLUMNA IZQUIERDA - NOMBRE + CHAT ABAJO */}
+              <div style={{ flex: 1, minWidth: 0, display: "flex", flexDirection: "column", justifyContent: "space-between" }}>
+                <div>
+                  <b style={{ fontSize: 14, lineHeight: 1.2, display: "block" }}>{f[0]}</b>
+                  <span style={{ fontSize: 12, lineHeight: 1.3, display: "block", marginTop: 3 }}>📍 {f[2]} - {f[1]}</span>
+                </div>
+                <button onClick={()=>window.open(`https://wa.me/${TELEFONO_PRUEBA}?text=${encodeURIComponent(`Hola ${f[0]}, soy cliente de FarmaCerca 24h de ${localidad || f[1]}. Horario: ${horario}. Necesito: ${productos.join(", ") || "Consulta general"}. ¿Lo tenéis en stock? Gracias`)}`, "_blank")} style={{ background: "#16a34a", color: "#fff", border: "none", padding: "7px 12px", borderRadius: 8, fontWeight: "bold", marginTop: 8, fontSize: 13, alignSelf: "flex-start" }}>💬 Chat</button>
               </div>
-              <div style={{ borderLeft: "1.5px solid #ccc", paddingLeft: 6, fontSize: 12, minWidth: 86 }}>
-                <div>{productos[0] || "Ibuprofeno 600mg"}</div>
-                <div>{productos[1] || "Paracetamol 1g"}</div>
-                <div>{productos[2] || "Crema"}</div>
-                <button onClick={()=>window.open(`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent("Farmacia "+f[0]+" "+f[2])}`, "_blank")} style={{ background: "#0090ff", color: "#fff", border: "none", padding: "6px 6px", borderRadius: 8, marginTop: 6, fontWeight: "bold", width: "100%", fontSize: 12 }}>✈ Cómo llegar</button>
+
+              {/* COLUMNA DERECHA - PRODUCTO CENTRADO + CÓMO LLEGAR ABAJO, EN LA MISMA LÍNEA QUE CHAT */}
+              <div style={{ borderLeft: "1.5px solid #ccc", paddingLeft: 8, width: 100, minWidth: 100, display: "flex", flexDirection: "column", justifyContent: "space-between" }}>
+                <div style={{ flex: 1, display: "flex", flexDirection: "column", justifyContent: "center", alignItems: "center", textAlign: "center", fontSize: 12, lineHeight: 1.5, gap: 2 }}>
+                  <div>{productos[0] || "Ibuprofeno 600mg"}</div>
+                  <div>{productos[1] || "Paracetamol 1g"}</div>
+                  <div>{productos[2] || "Crema"}</div>
+                </div>
+                <button onClick={()=>window.open(`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent("Farmacia "+f[0]+" "+f[2])}`, "_blank")} style={{ background: "#0090ff", color: "#fff", border: "none", padding: "7px 6px", borderRadius: 8, marginTop: 8, fontWeight: "bold", width: "100%", fontSize: 12 }}>✈ Cómo llegar</button>
               </div>
-              <div style={{ fontSize: 16, lineHeight: 1.5, textAlign: "center" }}>✓<br />✏️<br />👁</div>
+
+              <div style={{ fontSize: 16, lineHeight: 1.5, textAlign: "center", display: "flex", flexDirection: "column", justifyContent: "center" }}>✓<br />✏️<br />👁</div>
             </div>
           ))}
 
