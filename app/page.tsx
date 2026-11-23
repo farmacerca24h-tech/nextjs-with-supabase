@@ -229,6 +229,8 @@ const FARMACIAS: string[][] = [
 export default function Page() {
   const [vista, setVista] = useState<"cliente" | "farmacia">("cliente");
   const [localidad, setLocalidad] = useState("");
+  const [busquedaCiudad, setBusquedaCiudad] = useState("");
+  const [mostrarSugerencias, setMostrarSugerencias] = useState(false);
   const [diurno, setDiurno] = useState(true);
   const [guardia, setGuardia] = useState(false);
   const [festivo, setFestivo] = useState(false);
@@ -258,6 +260,18 @@ export default function Page() {
   const filtradas = FARMACIAS.filter(f => !localidad || f[1] === localidad);
   const tres = filtradas.slice(0, 3);
 
+  // SUGERENCIAS DE CIUDAD MIENTRAS ESCRIBES - sin tildes, no importa mayúsculas
+  const normalizar = (s:string) => s.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+  const sugerencias = busquedaCiudad.trim() === ""
+    ? localidades
+    : localidades.filter(l => normalizar(l).includes(normalizar(busquedaCiudad)));
+  const elegirCiudad = (ciudad:string) => {
+    setLocalidad(ciudad);
+    setBusquedaCiudad(ciudad);
+    setMostrarSugerencias(false);
+    setEnviado(false);
+  };
+
   const enviar = () => {
     if(!localidad){ alert("Elige primero tu ciudad o pedanía"); return; }
     if(texto.trim()){ setProductos([...productos, texto.trim()]); setTexto(""); }
@@ -283,10 +297,28 @@ export default function Page() {
       {vista === "cliente" && (
         <>
           <p style={{ fontWeight: "bold", margin: "8px 0 4px", fontSize: 18 }}>Elige:</p>
-          <select value={localidad} onChange={(e)=>{setLocalidad(e.target.value); setEnviado(false);}} style={{ width: "100%", padding: 14, borderRadius: 12, border: "2px solid #16a34a", fontSize: 16, background: "#f0fdf4", boxSizing: "border-box" }}>
-            <option value="">📍 Ciudad o pedanía...</option>
-            {localidades.map(l=><option key={l} value={l}>{l} ({FARMACIAS.filter(f=>f[1]===l).length})</option>)}
-          </select>
+          {/* BUSCADOR DE CIUDAD CON SUGERENCIAS */}
+          <div style={{ position: "relative", width: "100%" }}>
+            <input
+              value={busquedaCiudad}
+              onChange={(e)=>{ setBusquedaCiudad(e.target.value); setMostrarSugerencias(true); if(e.target.value===""){ setLocalidad(""); } }}
+              onFocus={()=>setMostrarSugerencias(true)}
+              placeholder="🔍 Escribe tu ciudad... ej: Marbella"
+              style={{ width: "100%", padding: 14, borderRadius: 12, border: "2px solid #16a34a", fontSize: 16, background: "#f0fdf4", boxSizing: "border-box" }}
+            />
+            {localidad && <button onClick={()=>{ setLocalidad(""); setBusquedaCiudad(""); }} style={{ position: "absolute", right: 10, top: 10, background: "#eee", border: "none", borderRadius: "50%", width: 28, height: 28, fontSize: 14 }}>❌</button>}
+            {mostrarSugerencias && (
+              <div style={{ position: "absolute", top: "100%", left: 0, right: 0, background: "#fff", border: "2px solid #16a34a", borderTop: "none", borderRadius: "0 0 12px 12px", maxHeight: 220, overflowY: "auto", zIndex: 20, boxShadow: "0 4px 12px rgba(0,0,0,0.15)" }}>
+                {sugerencias.length === 0 && <div style={{ padding: 12, fontSize: 14, color: "#666" }}>No hay ninguna ciudad con ese nombre. Prueba con otra.</div>}
+                {sugerencias.map(l=>(
+                  <div key={l} onClick={()=>elegirCiudad(l)} style={{ padding: "12px 14px", borderBottom: "1px solid #eee", fontSize: 16, cursor: "pointer", background: localidad===l ? "#f0fdf4" : "#fff", fontWeight: localidad===l ? "bold" : "normal" }}>
+                    📍 {l} <span style={{ color: "#16a34a", fontSize: 13 }}>({FARMACIAS.filter(f=>f[1]===l).length})</span>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+          {localidad && <p style={{ fontSize: 13, color: "#16a34a", fontWeight: "bold", margin: "6px 0 0" }}>✅ Has elegido: {localidad} ({FARMACIAS.filter(f=>f[1]===localidad).length} farmacias)</p>}
 
           <p style={{ fontWeight: "bold", margin: "12px 0 6px", fontSize: 17 }}>Para el Chat, marcar si estamos en horario:</p>
           {guardia && !festivo && <p style={{ background: "#fef3c7", border: "1px solid #f59e0b", padding: 8, borderRadius: 8, fontSize: 13, margin: "6px 0" }}>🌙 Es de noche: las farmacias diurnas ya han cerrado. Se marcará solo <b>De guardia</b> para que solo escribas a las de guardia.</p>}
