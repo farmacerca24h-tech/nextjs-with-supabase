@@ -9,7 +9,7 @@ from zoneinfo import ZoneInfo
 from bs4 import BeautifulSoup
 from curl_cffi import requests as cffi_requests
 
-SUPABASE_URL = os.environ["SUPABASE_URL"].rstrip("/")
+SUPABASE_URL = re.sub(r"/rest/v1.*$", "", os.environ["SUPABASE_URL"].strip().rstrip("/")).rstrip("/")
 SUPABASE_SERVICE_ROLE_KEY = os.environ["SUPABASE_SERVICE_ROLE_KEY"]
 
 MUNICIPALITY_CANONICAL: Dict[str, str] = {
