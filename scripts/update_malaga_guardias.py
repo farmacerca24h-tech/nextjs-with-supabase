@@ -306,32 +306,40 @@ def scrape_dates(target_dates: List[datetime]) -> List[Dict[str, str]]:
 
 
 def sync_to_supabase(rows: List[Dict[str, str]], oldest_keep_iso: str) -> None:
+    key = SUPABASE_SERVICE_ROLE_KEY.strip()
+    sb_session = cffi_requests.Session()
     headers = {
-        "apikey": SUPABASE_SERVICE_ROLE_KEY,
-        "Authorization": f"Bearer {SUPABASE_SERVICE_ROLE_KEY}",
+        "apikey": key,
         "Content-Type": "application/json",
         "Prefer": "resolution=merge-duplicates,return=minimal",
+        "User-Agent": "FarmaCerca24h-Updater/1.0",
     }
+    if key.startswith("eyJ"):
+        headers["Authorization"] = f"Bearer {key}"
 
     # Remove shifts older than yesterday so the table stays clean
-    del_resp = SESSION.delete(
-        f"{SUPABASE_URL}/rest/v1/guardias_malaga",
+    del_resp = sb_session.delete(
+        f"{SUPABASE_URL.strip()}/rest/v1/guardias_malaga",
         params={"fecha": f"lt.{oldest_keep_iso}"},
         headers=headers,
         timeout=30,
     )
+    if not del_resp.ok:
+        print(f"Supabase DELETE {del_resp.status_code}: {del_resp.text}")
     del_resp.raise_for_status()
 
     # Upsert in batches of 100
     for idx in range(0, len(rows), 100):
         batch = rows[idx : idx + 100]
-        up_resp = SESSION.post(
-            f"{SUPABASE_URL}/rest/v1/guardias_malaga",
+        up_resp = sb_session.post(
+            f"{SUPABASE_URL.strip()}/rest/v1/guardias_malaga",
             params={"on_conflict": "fecha,localidad,direccion,tipo_guardia"},
             json=batch,
             headers=headers,
             timeout=30,
         )
+        if not up_resp.ok:
+            print(f"Supabase POST {up_resp.status_code}: {up_resp.text}")
         up_resp.raise_for_status()
 
 
