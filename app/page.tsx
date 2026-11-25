@@ -333,7 +333,8 @@ export default function Page() {
     .map((g) => [
       g.titular || (g.tipo_guardia === "24H" ? "Farmacia de Guardia 24H" : "Farmacia Horario Ampliado"),
       g.localidad,
-      `${g.direccion}${g.sector ? ` (${g.sector})` : ""} • ${g.horario}${g.telefono ? ` • Tel: ${g.telefono}` : ""}`,
+      `${g.direccion}${g.sector ? ` (${g.sector})` : ""}`,
+      g.horario,
     ]);
 
   const filtradas = modoSoloGuardia
