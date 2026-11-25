@@ -462,6 +462,7 @@ export default function Page() {
                 <div>
                   <b style={{ fontSize: 14, lineHeight: 1.2, display: "block" }}>{f[0]}</b>
                   <span style={{ fontSize: 12, lineHeight: 1.3, display: "block", marginTop: 3 }}>📍 {f[2]} - {f[1]}</span>
+                  {f[3] && <><span style={{ fontSize: 12, color: "#0369a1", fontWeight: "bold" }}>🕒 {f[3]}</span><br /></>}
                 </div>
                 <button onClick={()=>window.open(`https://wa.me/${TELEFONO_PRUEBA}?text=${encodeURIComponent(`Hola ${f[0]}, soy cliente de FarmaCerca 24h de ${localidad || f[1]}. Horario: ${horario}. Necesito: ${productos.join(", ") || "Consulta general"}. ¿Lo tenéis en stock? Gracias`)}`, "_blank")} style={{ background: "#16a34a", color: "#fff", border: "none", padding: "7px 12px", borderRadius: 8, fontWeight: "bold", marginTop: 8, fontSize: 13, alignSelf: "flex-start" }}>💬 Chat</button>
               </div>
