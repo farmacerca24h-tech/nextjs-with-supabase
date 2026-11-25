@@ -1,0 +1,28 @@
+name: Update Malaga Guardias
+
+on:
+  schedule:
+    - cron: "35 7 * * *"
+    - cron: "35 8 * * *"
+  workflow_dispatch:
+
+jobs:
+  update-guardias:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install dependencies
+        run: pip install curl_cffi beautifulsoup4
+
+      - name: Run Málaga guardias updater
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+        run: python scripts/update_malaga_guardias.py
