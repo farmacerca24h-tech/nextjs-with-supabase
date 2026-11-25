@@ -12,8 +12,10 @@ from curl_cffi import requests as cffi_requests
 from pdfminer.high_level import extract_text as pdf_extract_text
 from pdfminer.layout import LAParams
 
-SUPABASE_URL = os.environ["SUPABASE_URL"].rstrip("/")
-SUPABASE_SERVICE_ROLE_KEY = os.environ["SUPABASE_SERVICE_ROLE_KEY"]
+SUPABASE_URL = re.sub(
+    r"/rest/v1.*$", "", os.environ["SUPABASE_URL"].strip().rstrip("/")
+).rstrip("/")
+SUPABASE_SERVICE_ROLE_KEY = os.environ["SUPABASE_SERVICE_ROLE_KEY"].strip()
 
 MUNICIPALITY_CANONICAL: Dict[str, str] = {
     "MALAGA": "Málaga",
@@ -509,7 +511,7 @@ def collect_official_malaga_pharmacies(
                         )
                         localidad = canon_loc or localidad
 
-                    clean_slug = re.sub(r"[^A-Z0-9]", "", full_key.upper())[:28]
+                    clean_slug = re.sub(r"[^A-Z0-9\-]", "", full_key.upper())
                     new_rec = {
                         "pharmacy_key": f"MALAGA-OFICIAL-{clean_slug}",
                         "titular": datos_info["titular"],
@@ -556,22 +558,27 @@ def collect_official_malaga_pharmacies(
 
 
 def upsert_to_supabase(rows: List[Dict[str, str]]) -> None:
+    sb_session = cffi_requests.Session()
     headers = {
         "apikey": SUPABASE_SERVICE_ROLE_KEY,
-        "Authorization": f"Bearer {SUPABASE_SERVICE_ROLE_KEY}",
         "Content-Type": "application/json",
         "Prefer": "resolution=merge-duplicates,return=minimal",
+        "User-Agent": "FarmaCerca24h-Updater/1.0",
     }
+    if SUPABASE_SERVICE_ROLE_KEY.startswith("eyJ"):
+        headers["Authorization"] = f"Bearer {SUPABASE_SERVICE_ROLE_KEY}"
 
     for idx in range(0, len(rows), 100):
         batch = rows[idx : idx + 100]
-        resp = SESSION.post(
+        resp = sb_session.post(
             f"{SUPABASE_URL}/rest/v1/farmacias_malaga",
             params={"on_conflict": "pharmacy_key"},
             json=batch,
             headers=headers,
             timeout=30,
         )
+        if not resp.ok:
+            print(f"Supabase POST {resp.status_code}: {resp.text}")
         resp.raise_for_status()
 
 
