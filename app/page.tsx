@@ -1,5 +1,43 @@
 "use client";
 import { useState, useEffect } from "react";
+import { createClient } from "@supabase/supabase-js";
+
+const supabase = createClient(
+  process.env.NEXT_PUBLIC_SUPABASE_URL!,
+  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+);
+
+type GuardiaRow = {
+  id: number;
+  fecha: string;
+  localidad: string;
+  sector: string;
+  direccion: string;
+  tipo_guardia: string;
+  horario: string;
+  titular: string;
+  telefono: string;
+};
+
+function getFechaGuardiaActivaMadrid(): string {
+  const ahora = new Date();
+  const partes = new Intl.DateTimeFormat("en-CA", {
+    timeZone: "Europe/Madrid",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+    hour: "2-digit",
+    minute: "2-digit",
+    hour12: false,
+  }).formatToParts(ahora);
+
+  const getPart = (t: string) => partes.find((p) => p.type === t)?.value || "00";
+  const horaMin = Number(getPart("hour")) * 60 + Number(getPart("minute"));
+
+  // In Málaga, 24h guardias rotate at 09:30; before 09:30 the active shift is yesterday's date
+  const refDate = horaMin < 9 * 60 + 30 ? new Date(ahora.getTime() - 86400000) : ahora;
+  return refDate.toLocaleDateString("en-CA", { timeZone: "Europe/Madrid" });
+}
 
 const TELEFONO_PRUEBA = "34634467345"; // 634467345 para pruebas
 
@@ -239,6 +277,27 @@ export default function Page() {
   const [enviado, setEnviado] = useState(false);
   const [respuestas, setRespuestas] = useState<{[key:number]:string}>({});
 
+  const [guardiasReales, setGuardiasReales] = useState<GuardiaRow[]>([]);
+  const [cargandoGuardias, setCargandoGuardias] = useState(true);
+
+  useEffect(() => {
+    const cargarGuardias = async () => {
+      setCargandoGuardias(true);
+      const fechaActiva = getFechaGuardiaActivaMadrid();
+      const { data, error } = await supabase
+        .from("guardias_malaga")
+        .select("*")
+        .eq("fecha", fechaActiva)
+        .order("tipo_guardia", { ascending: true });
+
+      if (!error && data) {
+        setGuardiasReales(data as GuardiaRow[]);
+      }
+      setCargandoGuardias(false);
+    };
+    cargarGuardias();
+  }, []);
+
   // AUTOMÁTICO: HORA + FESTIVO GENERAL + FESTIVO LOCAL DE LA CIUDAD ELEGIDA
   useEffect(() => {
     const ahora = new Date();
@@ -255,10 +314,33 @@ export default function Page() {
     }
   }, [localidad]);
 
-  const localidades = Array.from(new Set(FARMACIAS.map(f=>f[1]))).sort();
-  const horario = [diurno?"Diurno":"", guardia?"De guardia":"", festivo?"Festivo":""].filter(Boolean).join(", ") || "Diurno";
-  const filtradas = FARMACIAS.filter(f => !localidad || f[1] === localidad);
-  const tres = filtradas.slice(0, 3);
+  const modoSoloGuardia = guardia && !diurno;
+
+  const localidades = Array.from(
+    new Set([
+      ...FARMACIAS.map((f) => f[1]),
+      ...guardiasReales.map((g) => g.localidad),
+    ])
+  ).sort();
+
+  const horario =
+    [diurno ? "Diurno" : "", guardia ? "De guardia" : "", festivo ? "Festivo" : ""]
+      .filter(Boolean)
+      .join(", ") || "Diurno";
+
+  const guardiasFiltradas: string[][] = guardiasReales
+    .filter((g) => !localidad || g.localidad === localidad)
+    .map((g) => [
+      g.titular || (g.tipo_guardia === "24H" ? "Farmacia de Guardia 24H" : "Farmacia Horario Ampliado"),
+      g.localidad,
+      `${g.direccion}${g.sector ? ` (${g.sector})` : ""} • ${g.horario}${g.telefono ? ` • Tel: ${g.telefono}` : ""}`,
+    ]);
+
+  const filtradas = modoSoloGuardia
+    ? guardiasFiltradas
+    : FARMACIAS.filter((f) => !localidad || f[1] === localidad);
+
+  const tres = modoSoloGuardia ? filtradas.slice(0, 10) : filtradas.slice(0, 3);
 
   // SUGERENCIAS DE CIUDAD MIENTRAS ESCRIBES - sin tildes, no importa mayúsculas
   const normalizar = (s:string) => s.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
