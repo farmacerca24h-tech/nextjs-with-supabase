@@ -5,6 +5,13 @@ on:
     - cron: "35 7 * * *"
     - cron: "35 8 * * *"
   workflow_dispatch:
+  push:
+    branches:
+      - guardias-reales
+    paths:
+      - "scripts/update_malaga_guardias.py"
+      - ".github/workflows/daily-guardias.yml"
+
 
 jobs:
   update-guardias:
