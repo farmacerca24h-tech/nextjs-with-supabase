@@ -29,7 +29,8 @@ type GuardiaRow = {
   titular: string;
 };
 
-function getFechaGuardiaActivaMadrid(): string {
+// --- HORA Y FECHA SIEMPRE EN MADRID ---
+function getAhoraMadrid(): { fecha: string; horaDecimal: number; diaMes: string } {
   const ahora = new Date();
   const partes = new Intl.DateTimeFormat("en-CA", {
     timeZone: "Europe/Madrid",
@@ -40,16 +41,25 @@ function getFechaGuardiaActivaMadrid(): string {
     minute: "2-digit",
     hour12: false,
   }).formatToParts(ahora);
-
   const getPart = (t: string) => partes.find((p) => p.type === t)?.value || "00";
-  const horaMin = Number(getPart("hour")) * 60 + Number(getPart("minute"));
-
-  // In Málaga, 24h guardias rotate at 09:30; before 09:30 the active shift is yesterday's date
-  const refDate = horaMin < 9 * 60 + 30 ? new Date(ahora.getTime() - 86400000) : ahora;
-  return refDate.toLocaleDateString("en-CA", { timeZone: "Europe/Madrid" });
+  const horaDecimal = Number(getPart("hour")) + Number(getPart("minute")) / 60;
+  const fecha = `${getPart("year")}-${getPart("month")}-${getPart("day")}`;
+  const diaMes = `${Number(getPart("day"))}/${Number(getPart("month"))}`;
+  return { fecha, horaDecimal, diaMes };
 }
 
-const TELEFONO_PRUEBA = "34634467345"; // 634467345 para pruebas
+function getFechaGuardiaActivaMadrid(): string {
+  const { fecha, horaDecimal } = getAhoraMadrid();
+  if (horaDecimal < 9.5) {
+    const d = new Date(fecha + "T12:00:00");
+    d.setDate(d.getDate() - 1);
+    return d.toISOString().slice(0, 10);
+  }
+  return fecha;
+}
+
+// NÚMERO DE PRUEBA MANTENIDO - NO CAMBIAR SIN PERMISO
+const TELEFONO_PRUEBA = "34634467345";
 
 // FESTIVOS LOCALES 2026 - BOJA 6/10/2025 + corrección 18/12/2025 (Coín 4/5)
 const FESTIVOS_LOCALES: { [key: string]: string[] } = {
@@ -113,60 +123,33 @@ export default function Page() {
   const [productos, setProductos] = useState<string[]>([]);
   const [enviado, setEnviado] = useState(false);
   const [respuestas, setRespuestas] = useState<{ [key: number]: string }>({});
-
   const [farmaciasDb, setFarmaciasDb] = useState<FarmaciaRow[]>([]);
   const [guardiasReales, setGuardiasReales] = useState<GuardiaRow[]>([]);
   const [cargandoDatos, setCargandoDatos] = useState(true);
+  const [errorCiudad, setErrorCiudad] = useState(false);
 
   useEffect(() => {
     const cargarDatos = async () => {
       setCargandoDatos(true);
       const fechaActiva = getFechaGuardiaActivaMadrid();
-
       const [farmRes, guardRes] = await Promise.all([
-        supabase
-          .from("farmacias_malaga")
-          .select("pharmacy_key, titular, direccion, codigo_postal, localidad, sector, horario_habitual, service_status")
-          .order("localidad", { ascending: true })
-          .range(0, 999),
-        supabase
-          .from("guardias_malaga")
-          .select("id, fecha, localidad, sector, direccion, tipo_guardia, horario, titular")
-          .eq("fecha", fechaActiva)
-          .order("tipo_guardia", { ascending: true }),
+        supabase.from("farmacias_malaga").select("pharmacy_key, titular, direccion, codigo_postal, localidad, sector, horario_habitual, service_status").order("localidad", { ascending: true }).range(0, 999),
+        supabase.from("guardias_malaga").select("id, fecha, localidad, sector, direccion, tipo_guardia, horario, titular").eq("fecha", fechaActiva).order("tipo_guardia", { ascending: true }),
       ]);
-
-      if (!farmRes.error && farmRes.data) {
-        setFarmaciasDb(farmRes.data as FarmaciaRow[]);
-      }
-      if (!guardRes.error && guardRes.data) {
-        setGuardiasReales(guardRes.data as GuardiaRow[]);
-      }
+      if (!farmRes.error && farmRes.data) setFarmaciasDb(farmRes.data as FarmaciaRow[]);
+      if (!guardRes.error && guardRes.data) setGuardiasReales(guardRes.data as GuardiaRow[]);
       setCargandoDatos(false);
     };
     cargarDatos();
   }, []);
 
-  // AUTOMÁTICO: HORA + FESTIVO GENERAL + FESTIVO LOCAL DE LA CIUDAD ELEGIDA
   useEffect(() => {
-    const ahora = new Date();
-    const hora = ahora.getHours() + ahora.getMinutes() / 60;
-    const dia = ahora.getDate() + "/" + (ahora.getMonth() + 1);
+    const { horaDecimal, diaMes } = getAhoraMadrid();
     const festivosDeEsaCiudad = FESTIVOS_LOCALES[localidad] || [];
-    const esFestivo = FESTIVOS_GENERALES.includes(dia) || festivosDeEsaCiudad.includes(dia);
-    if (esFestivo) {
-      setFestivo(true);
-      setDiurno(false);
-      setGuardia(true);
-    } else if (hora >= 9 && hora < 21.5) {
-      setDiurno(true);
-      setGuardia(false);
-      setFestivo(false);
-    } else {
-      setDiurno(false);
-      setGuardia(true);
-      setFestivo(false);
-    }
+    const esFestivo = FESTIVOS_GENERALES.includes(diaMes) || festivosDeEsaCiudad.includes(diaMes);
+    if (esFestivo) { setFestivo(true); setDiurno(false); setGuardia(true); }
+    else if (horaDecimal >= 9 && horaDecimal < 21.5) { setDiurno(true); setGuardia(false); setFestivo(false); }
+    else { setDiurno(false); setGuardia(true); setFestivo(false); }
   }, [localidad]);
 
   const modoSoloGuardia = guardia && !diurno;
@@ -186,78 +169,58 @@ export default function Page() {
   ]);
 
   const listaActiva = modoSoloGuardia ? guardiasLista : farmaciasLista;
-
-  const localidades = Array.from(
-    new Set([
-      ...farmaciasLista.map((f) => f[1]),
-      ...guardiasLista.map((g) => g[1]),
-    ])
-  ).sort();
-
-  const horario =
-    [diurno ? "Diurno" : "", guardia ? "De guardia" : "", festivo ? "Festivo" : ""]
-      .filter(Boolean)
-      .join(", ") || "Diurno";
-
+  const localidades = Array.from(new Set([...farmaciasLista.map((f) => f[1]), ...guardiasLista.map((g) => g[1])])).sort();
+  const horario = [diurno ? "Diurno" : "", guardia ? "De guardia" : "", festivo ? "Festivo" : ""].filter(Boolean).join(", ") || "Diurno";
   const filtradas = listaActiva.filter((f) => !localidad || f[1] === localidad);
   const tres = modoSoloGuardia ? filtradas.slice(0, 10) : filtradas.slice(0, 3);
 
-  // SUGERENCIAS DE CIUDAD MIENTRAS ESCRIBES - sin tildes, no importa mayúsculas
   const normalizar = (s: string) => s.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
-  const sugerencias =
-    busquedaCiudad.trim() === ""
-      ? localidades
-      : localidades.filter((l) => normalizar(l).includes(normalizar(busquedaCiudad)));
+  const sugerencias = busquedaCiudad.trim() === "" ? localidades : localidades.filter((l) => normalizar(l).includes(normalizar(busquedaCiudad)));
+
   const elegirCiudad = (ciudad: string) => {
     setLocalidad(ciudad);
     setBusquedaCiudad(ciudad);
     setMostrarSugerencias(false);
     setEnviado(false);
+    setErrorCiudad(false);
+  };
+
+  const pedirCiudad = () => {
+    if (!localidad) {
+      setErrorCiudad(true);
+      setMostrarSugerencias(true);
+      setTimeout(() => setErrorCiudad(false), 3000);
+      return false;
+    }
+    setErrorCiudad(false);
+    return true;
   };
 
   const enviar = () => {
-    if (!localidad) {
-      alert("Elige primero tu ciudad o pedanía");
-      return;
-    }
-    if (texto.trim()) {
-      setProductos([...productos, texto.trim()]);
-      setTexto("");
-    }
+    if (!pedirCiudad()) return;
+    if (texto.trim()) { setProductos([...productos, texto.trim()]); setTexto(""); }
     setEnviado(true);
     const lista = texto.trim() ? [...productos, texto.trim()] : productos;
-    const textoPlano =
-      `Hola, soy FarmaCerca 24h. Cliente en ${localidad} (${horario}) pregunta:\n` +
-      (lista.length ? lista.map((p) => `- ${p}`).join("\n") : `- Consulta general`) +
-      `\nContesta con: TENGO / NO TENGO / BAJO PEDIDO`;
+    const textoPlano = `Hola, soy FarmaCerca 24h. Cliente en ${localidad} (${horario}) pregunta:\n` + (lista.length ? lista.map((p) => `- ${p}`).join("\n") : `- Consulta general`) + `\nContesta con: TENGO / NO TENGO / BAJO PEDIDO`;
     window.open(`https://wa.me/${TELEFONO_PRUEBA}?text=${encodeURIComponent(textoPlano)}`, "_blank");
   };
 
-  // FARMACIAS CERCANAS - USA LA UBICACIÓN DE GOOGLE MAPS, NO PIDE PERMISO EN TU WEB
   const buscarCercanas = () => {
-    setGuardia(false);
-    setDiurno(true);
-    if (localidad) {
-      window.open(`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent("farmacias en " + localidad)}`, "_blank");
-    } else {
-      window.open(`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent("farmacias cerca de mi")}`, "_blank");
-    }
+    if (!pedirCiudad()) return;
+    setGuardia(false); setDiurno(true);
+    window.open(`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent("farmacias en " + localidad)}`, "_blank");
   };
 
-  // FARMACIAS DE GUARDIA - TAMBIÉN ABRE GOOGLE MAPS
   const buscarGuardia = () => {
-    setGuardia(true);
-    setDiurno(false);
-    if (localidad) {
-      window.open(`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent("farmacia de guardia en " + localidad)}`, "_blank");
-    } else {
-      window.open(`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent("farmacia de guardia cerca de mi")}`, "_blank");
-    }
+    if (!pedirCiudad()) return;
+    setGuardia(true); setDiurno(false);
+    window.open(`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent("farmacia de guardia en " + localidad)}`, "_blank");
   };
+
+  const rosa = errorCiudad && !localidad;
 
   return (
     <main style={{ maxWidth: 480, width: "100%", margin: "0 auto", padding: 12, fontFamily: "sans-serif", background: "#fff", boxSizing: "border-box", overflowX: "hidden" }}>
-      {/* HEADER - ARREGLADO PARA MÓVIL, YA NO SE SALE */}
       <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 8, width: "100%", boxSizing: "border-box" }}>
         <img src="/logo.png" alt="Farmacerca 24h - A un mensaje de ti" style={{ height: "80px", width: "auto", maxWidth: "100%", display: "block" }} />
         <button onClick={() => alert("Para descargar el acceso directo: en tu móvil pulsa Compartir y luego Añadir a pantalla de inicio.")} style={{ background: "#0090ff", color: "#fff", border: "none", padding: "12px 12px", borderRadius: 10, fontWeight: "bold", fontSize: 14, width: "100%", boxSizing: "border-box", whiteSpace: "normal", textAlign: "center" }}>⬇ Descargar acceso directo</button>
@@ -270,21 +233,14 @@ export default function Page() {
 
       {vista === "cliente" && (
         <>
-          <p style={{ fontWeight: "bold", margin: "8px 0 4px", fontSize: 18 }}>Elige:</p>
-          {/* BUSCADOR DE CIUDAD CON SUGERENCIAS */}
+          <p style={{ fontWeight: "bold", margin: "8px 0 4px", fontSize: 18 }}>1º Elige tu ciudad o pedanía:</p>
           <div style={{ position: "relative", width: "100%" }}>
             <input
               value={busquedaCiudad}
-              onChange={(e) => {
-                setBusquedaCiudad(e.target.value);
-                setMostrarSugerencias(true);
-                if (e.target.value === "") {
-                  setLocalidad("");
-                }
-              }}
+              onChange={(e) => { setBusquedaCiudad(e.target.value); setMostrarSugerencias(true); setErrorCiudad(false); if (e.target.value === "") setLocalidad(""); }}
               onFocus={() => setMostrarSugerencias(true)}
               placeholder="🔍 Escribe tu ciudad... ej: Marbella"
-              style={{ width: "100%", padding: 14, borderRadius: 12, border: "2px solid #16a34a", fontSize: 16, background: "#f0fdf4", boxSizing: "border-box" }}
+              style={{ width: "100%", padding: 14, borderRadius: 12, border: rosa ? "3px solid #ec4899" : "2px solid #16a34a", fontSize: 16, background: rosa ? "#fce7f3" : "#f0fdf4", boxSizing: "border-box" }}
             />
             {localidad && <button onClick={() => { setLocalidad(""); setBusquedaCiudad(""); }} style={{ position: "absolute", right: 10, top: 10, background: "#eee", border: "none", borderRadius: "50%", width: 28, height: 28, fontSize: 14 }}>❌</button>}
             {mostrarSugerencias && (
@@ -298,24 +254,30 @@ export default function Page() {
               </div>
             )}
           </div>
+
+          {rosa && (
+            <p style={{ background: "#fce7f3", border: "2px solid #ec4899", color: "#9d174d", padding: 10, borderRadius: 10, fontSize: 14, fontWeight: "bold", margin: "8px 0 0", textAlign: "center" }}>
+              💗 ¡Elige primero tu ciudad o pedanía aquí arriba! 💗<br /><span style={{ fontWeight: "normal", fontSize: 13 }}>Sin ciudad no puedes escribir ni ver farmacias.</span>
+            </p>
+          )}
           {localidad && <p style={{ fontSize: 13, color: "#16a34a", fontWeight: "bold", margin: "6px 0 0" }}>✅ Has elegido: {localidad} ({listaActiva.filter((f) => f[1] === localidad).length} farmacias)</p>}
 
           <p style={{ fontWeight: "bold", margin: "12px 0 6px", fontSize: 17 }}>Para el Chat, marcar si estamos en horario:</p>
           {guardia && !festivo && <p style={{ background: "#fef3c7", border: "1px solid #f59e0b", padding: 8, borderRadius: 8, fontSize: 13, margin: "6px 0" }}>🌙 Es de noche: las farmacias diurnas ya han cerrado. Se marcará solo <b>De guardia</b> para que solo escribas a las de guardia.</p>}
           {festivo && <p style={{ background: "#fee2e2", border: "1px solid #ef4444", padding: 8, borderRadius: 8, fontSize: 13, margin: "6px 0" }}>📅 Hoy es <b>Festivo en {localidad || "tu ciudad"}</b>: las farmacias diurnas están cerradas. Solo quedan las de guardia.</p>}
 
-          {/* DIURNO / GUARDIA / FESTIVO - LOS 3 EN 1 LÍNEA, SIN SALIRSE */}
           <div style={{ display: "flex", flexWrap: "nowrap", justifyContent: "space-between", alignItems: "center", gap: 4, width: "100%", boxSizing: "border-box", fontSize: 13, fontWeight: "bold" }}>
             <label style={{ display: "flex", alignItems: "center", gap: 3, whiteSpace: "nowrap", flexShrink: 0 }}><input type="checkbox" checked={diurno} onChange={() => setDiurno(!diurno)} style={{ width: 18, height: 18, margin: 0 }} /> ☀️ Diurno</label>
             <label style={{ display: "flex", alignItems: "center", gap: 3, whiteSpace: "nowrap", flexShrink: 0 }}><input type="checkbox" checked={guardia} onChange={() => setGuardia(!guardia)} style={{ width: 18, height: 18, margin: 0 }} /> 🌙 Guardia</label>
             <label style={{ display: "flex", alignItems: "center", gap: 3, whiteSpace: "nowrap", flexShrink: 0 }}><input type="checkbox" checked={festivo} onChange={() => setFestivo(!festivo)} style={{ width: 18, height: 18, margin: 0 }} /> 📅 Festivo</label>
           </div>
 
-          <h3 style={{ color: "#16a34a", fontSize: 22, margin: "14px 0 8px" }}>💬 Chat de consulta</h3>
-          <div style={{ display: "flex", border: "2px solid #16a34a", borderRadius: 12, overflow: "hidden", background: "#f0fdf4", width: "100%", boxSizing: "border-box" }}>
-            <input value={texto} onChange={(e) => setTexto(e.target.value)} onKeyDown={(e) => { if (e.key === "Enter") enviar(); }} placeholder="🔍 ¿Qué necesitas? Escribe el producto..." style={{ flex: 1, minWidth: 0, padding: 14, border: "none", background: "transparent", fontSize: 16 }} />
-            <button onClick={enviar} style={{ background: "#16a34a", color: "#fff", border: "none", padding: "0 22px", fontWeight: "bold", fontSize: 18, whiteSpace: "nowrap" }}>Enviar</button>
+          <h3 style={{ color: localidad ? "#16a34a" : "#999", fontSize: 22, margin: "14px 0 8px" }}>💬 Chat de consulta {!localidad && "🔒"}</h3>
+          <div onClick={() => { if (!localidad) pedirCiudad(); }} style={{ display: "flex", border: `2px solid ${rosa ? "#ec4899" : localidad ? "#16a34a" : "#ccc"}`, borderRadius: 12, overflow: "hidden", background: rosa ? "#fce7f3" : localidad ? "#f0fdf4" : "#f5f5f5", width: "100%", boxSizing: "border-box" }}>
+            <input value={texto} onChange={(e) => setTexto(e.target.value)} onKeyDown={(e) => { if (e.key === "Enter") { if (!pedirCiudad()) return; enviar(); } }} onFocus={() => { if (!localidad) pedirCiudad(); }} placeholder={localidad ? "🔍 ¿Qué necesitas? Escribe el producto..." : "🔒 Primero elige tu ciudad arriba..."} style={{ flex: 1, minWidth: 0, padding: 14, border: "none", background: "transparent", fontSize: 16 }} />
+            <button onClick={() => { if (!pedirCiudad()) return; enviar(); }} style={{ background: localidad ? "#16a34a" : "#ec4899", color: "#fff", border: "none", padding: "0 22px", fontWeight: "bold", fontSize: 18, whiteSpace: "nowrap" }}>Enviar</button>
           </div>
+          {rosa && <p style={{ color: "#be185d", fontSize: 13, fontWeight: "bold", margin: "6px 0 0" }}>💗 No puedes escribir todavía. Elige tu ciudad arriba.</p>}
 
           {productos.map((p, i) => (
             <div key={i} style={{ display: "flex", justifyContent: "space-between", background: "#f0fdf4", padding: 10, borderRadius: 10, marginTop: 8, border: "1px solid #bbf7d0" }}>
@@ -324,49 +286,42 @@ export default function Page() {
           ))}
 
           <p style={{ fontWeight: "bold", fontSize: 14, margin: "10px 0 2px" }}><span style={{ color: "#16a34a" }}>✓</span> en stock &nbsp; <span style={{ color: "#dc2626" }}>✗</span> Sin stock &nbsp; 👁 otro &nbsp; ✏️ Bajo pedido</p>
-          <h3 style={{ color: "#16a34a", fontSize: 18, margin: "4px 0 6px" }}>
-            {cargandoDatos ? "⏳ Cargando farmacias actualizadas..." : "💬 Obteniendo respuestas..."}
-          </h3>
 
-          {/* RECUADROS DE FARMACIAS - TODOS IGUALES, CADA PRODUCTO CON SU SÍMBOLO AL LADO, ✓ VERDE */}
-          {tres.map((f, idx) => (
-            <div key={idx} style={{ border: "1.5px solid #16a34a", borderRadius: 10, padding: 8, marginBottom: 8, display: "flex", gap: 8, boxSizing: "border-box", minHeight: 132, alignItems: "stretch" }}>
-              <div style={{ background: "#16a34a", color: "#fff", width: 32, height: 32, minWidth: 32, borderRadius: "50%", display: "flex", alignItems: "center", justifyContent: "center", fontWeight: "bold", fontSize: 18, alignSelf: "flex-start" }}>{idx + 1}</div>
-
-              {/* COLUMNA IZQUIERDA - NOMBRE + CHAT ABAJO */}
-              <div style={{ flex: 1, minWidth: 0, display: "flex", flexDirection: "column", justifyContent: "space-between" }}>
-                <div>
-                  <b style={{ fontSize: 14, lineHeight: 1.2, display: "block" }}>{f[0]}</b>
-                  <span style={{ fontSize: 12, lineHeight: 1.3, display: "block", marginTop: 3 }}>📍 {f[2]} - {f[1]}</span>
-                  {f[3] && <><span style={{ fontSize: 12, color: "#0369a1", fontWeight: "bold" }}>🕒 {f[3]}</span><br /></>}
-                </div>
-                <button onClick={() => window.open(`https://wa.me/${TELEFONO_PRUEBA}?text=${encodeURIComponent(`Hola ${f[0]}, soy cliente de FarmaCerca 24h de ${localidad || f[1]}. Horario: ${horario}. Necesito: ${productos.join(", ") || "Consulta general"}. ¿Lo tenéis en stock? Gracias`)}`, "_blank")} style={{ background: "#16a34a", color: "#fff", border: "none", padding: "7px 12px", borderRadius: 8, fontWeight: "bold", marginTop: 8, fontSize: 13, alignSelf: "flex-start" }}>💬 Chat</button>
-              </div>
-
-              {/* COLUMNA DERECHA - CADA PRODUCTO CON SU SÍMBOLO ALINEADO, ✓ VERDE */}
-              <div style={{ borderLeft: "1.5px solid #ccc", paddingLeft: 8, width: 118, minWidth: 118, display: "flex", flexDirection: "column", justifyContent: "space-between" }}>
-                <div style={{ flex: 1, display: "flex", flexDirection: "column", justifyContent: "center", gap: 6, fontSize: 12, lineHeight: 1.3 }}>
-                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 4 }}>
-                    <span style={{ flex: 1, textAlign: "left" }}>{productos[0] || "Ibuprofeno 600mg"}</span>
-                    <span style={{ color: "#16a34a", fontWeight: "bold", fontSize: 16, minWidth: 18, textAlign: "center" }}>✓</span>
-                  </div>
-                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 4 }}>
-                    <span style={{ flex: 1, textAlign: "left" }}>{productos[1] || "Paracetamol 1g"}</span>
-                    <span style={{ fontSize: 14, minWidth: 18, textAlign: "center" }}>✏️</span>
-                  </div>
-                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 4 }}>
-                    <span style={{ flex: 1, textAlign: "left" }}>{productos[2] || "Crema"}</span>
-                    <span style={{ fontSize: 14, minWidth: 18, textAlign: "center" }}>👁</span>
-                  </div>
-                </div>
-                <button onClick={() => window.open(`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent("Farmacia " + f[0] + " " + f[2])}`, "_blank")} style={{ background: "#0090ff", color: "#fff", border: "none", padding: "7px 6px", borderRadius: 8, marginTop: 8, fontWeight: "bold", width: "100%", fontSize: 12 }}>✈ Cómo llegar</button>
-              </div>
+          {!localidad ? (
+            <div style={{ border: "2px dashed #ec4899", borderRadius: 10, padding: 14, marginTop: 8, textAlign: "center", background: rosa ? "#fce7f3" : "#fffbeb" }}>
+              <p style={{ fontSize: 16, fontWeight: "bold", margin: 0, color: "#9d174d" }}>💗 Elige tu ciudad o pedanía</p>
+              <p style={{ fontSize: 13, margin: "6px 0 0" }}>Aquí saldrán las farmacias cuando elijas tu ciudad en el buscador de arriba.</p>
             </div>
-          ))}
+          ) : (
+            <>
+              <h3 style={{ color: "#16a34a", fontSize: 18, margin: "8px 0 6px" }}>{cargandoDatos ? "⏳ Cargando farmacias actualizadas..." : `💬 Farmacias en ${localidad}`}</h3>
+              {tres.map((f, idx) => (
+                <div key={idx} style={{ border: "1.5px solid #16a34a", borderRadius: 10, padding: 8, marginBottom: 8, display: "flex", gap: 8, boxSizing: "border-box", minHeight: 132, alignItems: "stretch" }}>
+                  <div style={{ background: "#16a34a", color: "#fff", width: 32, height: 32, minWidth: 32, borderRadius: "50%", display: "flex", alignItems: "center", justifyContent: "center", fontWeight: "bold", fontSize: 18, alignSelf: "flex-start" }}>{idx + 1}</div>
+                  <div style={{ flex: 1, minWidth: 0, display: "flex", flexDirection: "column", justifyContent: "space-between" }}>
+                    <div>
+                      <b style={{ fontSize: 14, lineHeight: 1.2, display: "block" }}>{f[0]}</b>
+                      <span style={{ fontSize: 12, lineHeight: 1.3, display: "block", marginTop: 3 }}>📍 {f[2]} - {f[1]}</span>
+                      {f[3] && <><span style={{ fontSize: 12, color: "#0369a1", fontWeight: "bold" }}>🕒 {f[3]}</span><br /></>}
+                    </div>
+                    <button onClick={() => { if (!pedirCiudad()) return; window.open(`https://wa.me/${TELEFONO_PRUEBA}?text=${encodeURIComponent(`Hola ${f[0]}, soy cliente de FarmaCerca 24h de ${localidad || f[1]}. Horario: ${horario}. Necesito: ${productos.join(", ") || "Consulta general"}. ¿Lo tenéis en stock? Gracias`)}`, "_blank"); }} style={{ background: "#16a34a", color: "#fff", border: "none", padding: "7px 12px", borderRadius: 8, fontWeight: "bold", marginTop: 8, fontSize: 13, alignSelf: "flex-start" }}>💬 Chat</button>
+                  </div>
+                  <div style={{ borderLeft: "1.5px solid #ccc", paddingLeft: 8, width: 118, minWidth: 118, display: "flex", flexDirection: "column", justifyContent: "space-between" }}>
+                    <div style={{ flex: 1, display: "flex", flexDirection: "column", justifyContent: "center", gap: 6, fontSize: 12, lineHeight: 1.3 }}>
+                      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 4 }}><span style={{ flex: 1, textAlign: "left" }}>{productos[0] || "Ibuprofeno 600mg"}</span><span style={{ color: "#16a34a", fontWeight: "bold", fontSize: 16, minWidth: 18, textAlign: "center" }}>✓</span></div>
+                      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 4 }}><span style={{ flex: 1, textAlign: "left" }}>{productos[1] || "Paracetamol 1g"}</span><span style={{ fontSize: 14, minWidth: 18, textAlign: "center" }}>✏️</span></div>
+                      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 4 }}><span style={{ flex: 1, textAlign: "left" }}>{productos[2] || "Crema"}</span><span style={{ fontSize: 14, minWidth: 18, textAlign: "center" }}>👁</span></div>
+                    </div>
+                    <button onClick={() => { if (!pedirCiudad()) return; window.open(`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent("Farmacia " + f[0] + " " + f[2])}`, "_blank"); }} style={{ background: "#0090ff", color: "#fff", border: "none", padding: "7px 6px", borderRadius: 8, marginTop: 8, fontWeight: "bold", width: "100%", fontSize: 12 }}>✈ Cómo llegar</button>
+                  </div>
+                </div>
+              ))}
+            </>
+          )}
 
           <div style={{ display: "flex", gap: 8, marginTop: 2 }}>
-            <button onClick={buscarGuardia} style={{ flex: 1, padding: 8, borderRadius: 10, fontWeight: "bold", background: "#dbeafe", border: "1.5px solid #0090ff", fontSize: 13 }}>🌙 Farmacias de guardia →<br /><span style={{ fontWeight: "normal", fontSize: 11 }}>Guardias de hoy en Maps</span></button>
-            <button onClick={buscarCercanas} style={{ flex: 1, padding: 8, borderRadius: 10, fontWeight: "bold", background: "#e6f7ee", border: "1.5px solid #16a34a", fontSize: 13 }}>📍 Farmacias cercanas →<br /><span style={{ fontWeight: "normal", fontSize: 11 }}>Cerca de ti en Maps</span></button>
+            <button onClick={() => { if (!pedirCiudad()) return; buscarGuardia(); }} style={{ flex: 1, padding: 8, borderRadius: 10, fontWeight: "bold", background: rosa ? "#fce7f3" : "#dbeafe", border: `1.5px solid ${rosa ? "#ec4899" : "#0090ff"}`, fontSize: 13, color: rosa ? "#9d174d" : "#000" }}>🌙 Farmacias de guardia →<br /><span style={{ fontWeight: "normal", fontSize: 11 }}>{localidad ? "Guardias de hoy en Maps" : "💗 Elige ciudad primero"}</span></button>
+            <button onClick={() => { if (!pedirCiudad()) return; buscarCercanas(); }} style={{ flex: 1, padding: 8, borderRadius: 10, fontWeight: "bold", background: rosa ? "#fce7f3" : "#e6f7ee", border: `1.5px solid ${rosa ? "#ec4899" : "#16a34a"}`, fontSize: 13, color: rosa ? "#9d174d" : "#000" }}>📍 Farmacias cercanas →<br /><span style={{ fontWeight: "normal", fontSize: 11 }}>{localidad ? "Cerca de ti en Maps" : "💗 Elige ciudad primero"}</span></button>
           </div>
 
           <div style={{ background: "#e6f7ee", border: "1.5px solid #16a34a", borderRadius: 10, padding: 8, marginTop: 8 }}>
