@@ -33,11 +33,13 @@ export default function Page() {
   const [productos, setProductos] = useState<string[]>([]);
   const [enviado, setEnviado] = useState(false);
   const [respuestas, setRespuestas] = useState<{ [key: number]: string }>({});
+  const TAMANO_TANDA = 3;
   const [farmaciasDb, setFarmaciasDb] = useState<FarmaciaRow[]>([]);
   const [guardiasReales, setGuardiasReales] = useState<GuardiaRow[]>([]);
   const [cargandoDatos, setCargandoDatos] = useState(true);
   const [errorCiudad, setErrorCiudad] = useState(false);
   const [seleccionadas, setSeleccionadas] = useState<string[]>([]);
+  const [usadas, setUsadas] = useState<string[]>([]);
   const [enviadasA, setEnviadasA] = useState<string[]>([]);
   const [mostrarDesplegableFarmacias, setMostrarDesplegableFarmacias] = useState(false);
   useEffect(() => {
@@ -72,12 +74,74 @@ export default function Page() {
   const tres = filtradas;
   const normalizar = (s: string) => s.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
   const sugerencias = busquedaCiudad.trim() === "" ? localidades : localidades.filter((l) => normalizar(l).includes(normalizar(busquedaCiudad)));
+  useEffect(() => {
+    setSeleccionadas([]);
+    setUsadas([]);
+    setEnviadasA([]);
+    setMostrarDesplegableFarmacias(false);
+  }, [localidad, modoSoloGuardia]);
+
   const seleccionadasLista = filtradas.filter((f) => seleccionadas.includes(f[4]));
-  const todasSeleccionadas = filtradas.length > 0 && filtradas.every((f) => seleccionadas.includes(f[4]));
-  const toggleTodas = () => { if (todasSeleccionadas) setSeleccionadas([]); else setSeleccionadas(filtradas.map((f) => f[4])); };
-  const elegirCiudad = (ciudad: string) => { setLocalidad(ciudad); setBusquedaCiudad(ciudad); setMostrarSugerencias(false); setEnviado(false); setErrorCiudad(false); setSeleccionadas([]); setEnviadasA([]); setMostrarDesplegableFarmacias(false); };
-  const pedirCiudad = () => { if (!localidad) { setErrorCiudad(true); setMostrarSugerencias(true); setTimeout(() => setErrorCiudad(false), 3000); return false; } setErrorCiudad(false); return true; };
-  const toggleSeleccion = (key: string) => { if (seleccionadas.includes(key)) setSeleccionadas(seleccionadas.filter((x) => x !== key)); else setSeleccionadas([...seleccionadas, key]); };
+  const disponiblesSinRepetir = filtradas.filter(
+    (f) => !usadas.includes(f[4]) && !enviadasA.includes(f[4])
+  );
+
+  const elegirSiguienteTanda = () => {
+    const siguientes = disponiblesSinRepetir.slice(0, TAMANO_TANDA).map((f) => f[4]);
+    if (siguientes.length === 0) return;
+    setSeleccionadas(siguientes);
+    setUsadas((prev) => Array.from(new Set([...prev, ...siguientes])));
+    setMostrarDesplegableFarmacias(false);
+  };
+
+  const reiniciarTandas = () => {
+    setSeleccionadas([]);
+    setUsadas([]);
+    setEnviadasA([]);
+  };
+
+  const elegirCiudad = (ciudad: string) => {
+    setLocalidad(ciudad);
+    setBusquedaCiudad(ciudad);
+    setMostrarSugerencias(false);
+    setEnviado(false);
+    setErrorCiudad(false);
+    setSeleccionadas([]);
+    setUsadas([]);
+    setEnviadasA([]);
+    setMostrarDesplegableFarmacias(false);
+  };
+
+  const pedirCiudad = () => {
+    if (!localidad) {
+      setErrorCiudad(true);
+      setMostrarSugerencias(true);
+      setTimeout(() => setErrorCiudad(false), 3000);
+      return false;
+    }
+    setErrorCiudad(false);
+    return true;
+  };
+
+  const toggleSeleccion = (key: string) => {
+    if (seleccionadas.includes(key)) {
+      setSeleccionadas((prev) => prev.filter((x) => x !== key));
+      if (!enviadasA.includes(key)) {
+        setUsadas((prev) => prev.filter((x) => x !== key));
+      }
+      return;
+    }
+    if (usadas.includes(key) || enviadasA.includes(key)) {
+      alert("Esta farmacia ya se eligió en una tanda anterior.");
+      return;
+    }
+    if (seleccionadas.length >= TAMANO_TANDA) {
+      alert("Solo puedes elegir hasta 3 farmacias por tanda. Quita una o pulsa 'Siguiente tanda de 3'.");
+      return;
+    }
+    setSeleccionadas((prev) => [...prev, key]);
+    setUsadas((prev) => Array.from(new Set([...prev, key])));
+  };
   const enviarAUna = (f: string[]) => { if (!pedirCiudad()) return; if (!seleccionadas.includes(f[4])) { alert("Marca primero la casilla de esta farmacia en el desplegable para enviarle solo a ella."); return; } setEnviado(true); if (!enviadasA.includes(f[4])) setEnviadasA([...enviadasA, f[4]]); const textoPlano = `Hola ${f[0]}, soy cliente de FarmaCerca 24h de ${localidad || f[1]}. Horario: ${horario}. Necesito: ${productos.join(", ") || texto.trim() || "Consulta general"}. ¿Lo tenéis en stock? Gracias. Contesta con: TENGO / NO TENGO / BAJO PEDIDO`; window.open(`https://wa.me/${TELEFONO_PRUEBA}?text=${encodeURIComponent(textoPlano)}`, "_blank"); };
   const enviar = () => { if (!pedirCiudad()) return; if (texto.trim()) { setProductos([...productos, texto.trim()]); setTexto(""); } setEnviado(true); const lista = texto.trim() ? [...productos, texto.trim()] : productos; const textoPlano = `Hola, soy FarmaCerca 24h. Cliente en ${localidad} (${horario}) pregunta:\n` + (lista.length ? lista.map((p) => `- ${p}`).join("\n") : `- Consulta general`) + `\nContesta con: TENGO / NO TENGO / BAJO PEDIDO`; window.open(`https://wa.me/${TELEFONO_PRUEBA}?text=${encodeURIComponent(textoPlano)}`, "_blank"); };
   const buscarCercanas = () => { if (!pedirCiudad()) return; setGuardia(false); setDiurno(true); window.open(`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent("farmacias en " + localidad)}`, "_blank"); };
@@ -128,21 +192,106 @@ export default function Page() {
             <div style={{ border: "2px dashed #ccc", borderRadius: 10, padding: 14, marginTop: 0, textAlign: "center", background: "#fffbeb" }}><p style={{ fontSize: 16, fontWeight: "bold", margin: 0, color: "#333" }}>🔴 Elige tu ciudad o pedanía</p><p style={{ fontSize: 13, margin: "6px 0 0" }}>Aquí saldrán las farmacias cuando elijas tu ciudad en el buscador de arriba.</p></div>
           ) : (
             <>
-              <p style={{ fontWeight: "bold", fontSize: 16, margin: "4px 0 6px", color: "#000" }}>2º Elige a qué farmacias enviar</p>
+              <p style={{ fontWeight: "bold", fontSize: 16, margin: "4px 0 6px", color: "#000" }}>
+                2º Elige a qué farmacias enviar (de 3 en 3 sin repetir)
+              </p>
+
+              <div style={{ display: "flex", gap: 6, marginBottom: 8 }}>
+                <button
+                  onClick={elegirSiguienteTanda}
+                  disabled={disponiblesSinRepetir.length === 0}
+                  style={{
+                    flex: 1,
+                    background: disponiblesSinRepetir.length > 0 ? "#16a34a" : "#9ca3af",
+                    color: "#fff",
+                    border: "none",
+                    padding: "11px 12px",
+                    borderRadius: 10,
+                    fontWeight: "bold",
+                    fontSize: 14,
+                    cursor: disponiblesSinRepetir.length > 0 ? "pointer" : "not-allowed",
+                  }}
+                >
+                  {disponiblesSinRepetir.length > 0
+                    ? `🎯 Elegir siguientes ${Math.min(TAMANO_TANDA, disponiblesSinRepetir.length)} sin repetir (${disponiblesSinRepetir.length} quedan)`
+                    : `✅ Todas elegidas (${filtradas.length}/${filtradas.length})`}
+                </button>
+                {usadas.length > 0 && (
+                  <button
+                    onClick={reiniciarTandas}
+                    style={{
+                      background: "#fff",
+                      color: "#16a34a",
+                      border: "2px solid #16a34a",
+                      padding: "10px 12px",
+                      borderRadius: 10,
+                      fontWeight: "bold",
+                      fontSize: 13,
+                      whiteSpace: "nowrap",
+                      cursor: "pointer",
+                    }}
+                  >
+                    🔄 Reiniciar
+                  </button>
+                )}
+              </div>
+
               <div style={{ width: "100%", boxSizing: "border-box", border: "2px solid #16a34a", borderRadius: 12, overflow: "hidden", background: "#fff" }}>
                 <button onClick={() => setMostrarDesplegableFarmacias(!mostrarDesplegableFarmacias)} style={{ width: "100%", padding: 14, border: "none", borderBottom: mostrarDesplegableFarmacias ? "2px solid #16a34a" : "none", fontSize: 16, background: "#f0fdf4", boxSizing: "border-box", textAlign: "left", display: "flex", justifyContent: "space-between", alignItems: "center", fontWeight: "bold", gap: 8 }}>
-                  <span style={{ flex: 1, lineHeight: 1.3, wordBreak: "break-word", overflowWrap: "break-word" }}>{seleccionadas.length === 0 ? `🏪 Selecciona farmacias de ${localidad} (${filtradas.length})` : `🏪 ${seleccionadas.length} seleccionada${seleccionadas.length > 1 ? "s" : ""} - Pulsa para cambiar`}</span>
+                  <span style={{ flex: 1, lineHeight: 1.3, wordBreak: "break-word", overflowWrap: "break-word" }}>
+                    {seleccionadas.length === 0
+                      ? `🏪 Ver las ${filtradas.length} farmacias de ${localidad} (${disponiblesSinRepetir.length} sin usar)`
+                      : `🏪 ${seleccionadas.length} en esta tanda • ${disponiblesSinRepetir.length} pendientes`}
+                  </span>
                   <span style={{ flexShrink: 0 }}>{mostrarDesplegableFarmacias ? "▲" : "▼"}</span>
                 </button>
                 {mostrarDesplegableFarmacias && (
                   <div style={{ width: "100%", boxSizing: "border-box", maxHeight: 340, overflowY: "auto", background: "#fff" }}>
-                    <label style={{ display: "flex", alignItems: "center", gap: 10, padding: "12px 10px", borderBottom: "2px solid #16a34a", cursor: "pointer", background: todasSeleccionadas ? "#bbf7d0" : "#f0fdf4", boxSizing: "border-box" }}>
-                      <input type="checkbox" checked={todasSeleccionadas} onChange={toggleTodas} style={{ width: 26, height: 26, minWidth: 26, flexShrink: 0, accentColor: "#16a34a" }} />
-                      <span style={{ flex: 1, fontWeight: "bold", fontSize: 14, lineHeight: 1.3, wordBreak: "break-word" }}>Seleccionar todas las de {localidad} ({filtradas.length})</span>
-                    </label>
-                    {filtradas.map((f, idx) => { const esta = seleccionadas.includes(f[4]); return (<label key={f[4] + idx} style={{ display: "flex", alignItems: "flex-start", gap: 10, padding: "12px 10px", borderBottom: "1px solid #eee", cursor: "pointer", background: esta ? "#bbf7d0" : "#fff", boxSizing: "border-box", width: "100%" }}><input type="checkbox" checked={esta} onChange={() => toggleSeleccion(f[4])} style={{ width: 26, height: 26, minWidth: 26, flexShrink: 0, marginTop: 2, accentColor: "#16a34a" }} /><span style={{ flex: 1, minWidth: 0, wordBreak: "break-word", overflowWrap: "break-word" }}><b style={{ fontSize: 14, display: "block", lineHeight: 1.3 }}>{f[0]}</b><span style={{ fontSize: 12, color: "#555", display: "block", marginTop: 2, lineHeight: 1.3 }}>📍 {f[2]}</span>{f[3] && <span style={{ fontSize: 12, color: "#0369a1", fontWeight: "bold" }}>🕒 {f[3]}</span>}{esta && <span style={{ fontSize: 12, color: "#166534", fontWeight: "bold", display: "block" }}>✅ Elegida</span>}</span></label>); })}
+                    {filtradas.map((f, idx) => {
+                      const esta = seleccionadas.includes(f[4]);
+                      const yaEnviada = enviadasA.includes(f[4]);
+                      const yaUsadaAntes = !esta && (usadas.includes(f[4]) || yaEnviada);
+                      return (
+                        <label
+                          key={f[4] + idx}
+                          style={{
+                            display: "flex",
+                            alignItems: "flex-start",
+                            gap: 10,
+                            padding: "12px 10px",
+                            borderBottom: "1px solid #eee",
+                            cursor: yaUsadaAntes ? "not-allowed" : "pointer",
+                            background: esta ? "#bbf7d0" : yaUsadaAntes ? "#f3f4f6" : "#fff",
+                            opacity: yaUsadaAntes ? 0.65 : 1,
+                            boxSizing: "border-box",
+                            width: "100%",
+                          }}
+                        >
+                          <input
+                            type="checkbox"
+                            checked={esta}
+                            disabled={yaUsadaAntes}
+                            onChange={() => toggleSeleccion(f[4])}
+                            style={{ width: 26, height: 26, minWidth: 26, flexShrink: 0, marginTop: 2, accentColor: "#16a34a" }}
+                          />
+                          <span style={{ flex: 1, minWidth: 0, wordBreak: "break-word", overflowWrap: "break-word" }}>
+                            <b style={{ fontSize: 14, display: "block", lineHeight: 1.3 }}>{idx + 1}. {f[0]}</b>
+                            <span style={{ fontSize: 12, color: "#555", display: "block", marginTop: 2, lineHeight: 1.3 }}>📍 {f[2]}</span>
+                            {f[3] && <span style={{ fontSize: 12, color: "#0369a1", fontWeight: "bold" }}>🕒 {f[3]}</span>}
+                            {esta && <span style={{ fontSize: 12, color: "#166534", fontWeight: "bold", display: "block" }}>✅ En tanda actual</span>}
+                            {yaUsadaAntes && (
+                              <span style={{ fontSize: 12, color: "#6b7280", fontWeight: "bold", display: "block" }}>
+                                {yaEnviada ? "📨 Ya enviada (no repetir)" : "✓ Ya elegida en tanda anterior"}
+                              </span>
+                            )}
+                          </span>
+                        </label>
+                      );
+                    })}
                     <button onClick={() => setMostrarDesplegableFarmacias(false)} style={{ width: "100%", background: "#16a34a", color: "#fff", border: "none", padding: "12px", fontWeight: "bold", fontSize: 14, boxSizing: "border-box" }}>✅ Listo, cerrar desplegable</button>
                   </div>
+                )}
+              </div>
                 )}
               </div>
               {seleccionadasLista.map((f, idx) => { const yaEnviada = enviadasA.includes(f[4]); return (<div key={f[4]} style={{ border: "2.5px solid #16a34a", borderRadius: 10, padding: 8, marginTop: 8, marginBottom: 0, display: "flex", gap: 8, boxSizing: "border-box", minHeight: 132, alignItems: "stretch", background: "#f0fdf4" }}><div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 6 }}><div style={{ background: "#16a34a", color: "#fff", width: 32, height: 32, minWidth: 32, borderRadius: "50%", display: "flex", alignItems: "center", justifyContent: "center", fontWeight: "bold", fontSize: 18 }}>{idx + 1}</div><button onClick={() => toggleSeleccion(f[4])} style={{ background: "#fff", border: "1px solid #ccc", borderRadius: 6, fontSize: 11, padding: "4px 6px" }}>Quitar ❌</button></div><div style={{ flex: 1, minWidth: 0, display: "flex", flexDirection: "column", justifyContent: "space-between" }}><div><b style={{ fontSize: 14, lineHeight: 1.2, display: "block" }}>{f[0]}</b><span style={{ fontSize: 12, lineHeight: 1.3, display: "block", marginTop: 3 }}>📍 {f[2]} - {f[1]}</span>{f[3] && <><span style={{ fontSize: 12, color: "#0369a1", fontWeight: "bold" }}>🕒 {f[3]}</span><br /></>}{yaEnviada && <span style={{ fontSize: 12, color: "#16a34a", fontWeight: "bold" }}>✅ Ya enviado a esta</span>}</div><button onClick={() => enviarAUna(f)} style={{ background: "#16a34a", color: "#fff", border: "none", padding: "7px 12px", borderRadius: 8, fontWeight: "bold", marginTop: 8, fontSize: 13, alignSelf: "flex-start" }}>💬 {yaEnviada ? "Volver a enviar" : "Enviar solo a esta"}</button></div><div style={{ borderLeft: "1.5px solid #ccc", paddingLeft: 8, width: 118, minWidth: 118, display: "flex", flexDirection: "column", justifyContent: "space-between" }}><div style={{ flex: 1, display: "flex", flexDirection: "column", justifyContent: "center", gap: 6, fontSize: 12, lineHeight: 1.3 }}><div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 4 }}><span style={{ flex: 1, textAlign: "left" }}>{productos[0] || "Ibuprofeno 600mg"}</span><span style={{ color: "#16a34a", fontWeight: "bold", fontSize: 16, minWidth: 18, textAlign: "center" }}>✓</span></div><div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 4 }}><span style={{ flex: 1, textAlign: "left" }}>{productos[1] || "Paracetamol 1g"}</span><span style={{ fontSize: 14, minWidth: 18, textAlign: "center" }}>✏️</span></div><div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 4 }}><span style={{ flex: 1, textAlign: "left" }}>{productos[2] || "Crema"}</span><span style={{ fontSize: 14, minWidth: 18, textAlign: "center" }}>👁</span></div></div><button onClick={() => { if (!pedirCiudad()) return; window.open(`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent("Farmacia " + f[0] + " " + f[2])}`, "_blank"); }} style={{ background: "#0090ff", color: "#fff", border: "none", padding: "7px 6px", borderRadius: 8, marginTop: 8, fontWeight: "bold", width: "100%", fontSize: 12 }}>✈ Cómo llegar</button></div></div>); })}
