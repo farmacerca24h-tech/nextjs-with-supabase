@@ -39,8 +39,7 @@ export default function Page() {
   const [errorCiudad, setErrorCiudad] = useState(false);
   const [seleccionadas, setSeleccionadas] = useState<string[]>([]);
   const [enviadasA, setEnviadasA] = useState<string[]>([]);
-  const [mostrarDesplegableFarmacias, setMostrarDesplegableFarmacias] = useState(true);
-  const [busquedaFarmacia, setBusquedaFarmacia] = useState("");
+  const [mostrarDesplegableFarmacias, setMostrarDesplegableFarmacias] = useState(false);
   useEffect(() => {
     const cargarDatos = async () => {
       setCargandoDatos(true);
@@ -73,16 +72,15 @@ export default function Page() {
   const tres = filtradas;
   const normalizar = (s: string) => s.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
   const sugerencias = busquedaCiudad.trim() === "" ? localidades : localidades.filter((l) => normalizar(l).includes(normalizar(busquedaCiudad)));
-  const farmaciasFiltradasDesplegable = busquedaFarmacia.trim() === "" ? filtradas : filtradas.filter((f) => normalizar(f[0] + " " + f[2]).includes(normalizar(busquedaFarmacia)));
   const seleccionadasLista = filtradas.filter((f) => seleccionadas.includes(f[4]));
-  const elegirCiudad = (ciudad: string) => { setLocalidad(ciudad); setBusquedaCiudad(ciudad); setMostrarSugerencias(false); setEnviado(false); setErrorCiudad(false); setSeleccionadas([]); setEnviadasA([]); setBusquedaFarmacia(""); setMostrarDesplegableFarmacias(true); };
+  const elegirCiudad = (ciudad: string) => { setLocalidad(ciudad); setBusquedaCiudad(ciudad); setMostrarSugerencias(false); setEnviado(false); setErrorCiudad(false); setSeleccionadas([]); setEnviadasA([]); setMostrarDesplegableFarmacias(false); };
   const pedirCiudad = () => { if (!localidad) { setErrorCiudad(true); setMostrarSugerencias(true); setTimeout(() => setErrorCiudad(false), 3000); return false; } setErrorCiudad(false); return true; };
   const toggleSeleccion = (key: string) => { if (seleccionadas.includes(key)) setSeleccionadas(seleccionadas.filter((x) => x !== key)); else setSeleccionadas([...seleccionadas, key]); };
   const enviarAUna = (f: string[]) => { if (!pedirCiudad()) return; if (!seleccionadas.includes(f[4])) { alert("Marca primero la casilla de esta farmacia en el desplegable para enviarle solo a ella."); return; } setEnviado(true); if (!enviadasA.includes(f[4])) setEnviadasA([...enviadasA, f[4]]); const textoPlano = `Hola ${f[0]}, soy cliente de FarmaCerca 24h de ${localidad || f[1]}. Horario: ${horario}. Necesito: ${productos.join(", ") || texto.trim() || "Consulta general"}. ¿Lo tenéis en stock? Gracias. Contesta con: TENGO / NO TENGO / BAJO PEDIDO`; window.open(`https://wa.me/${TELEFONO_PRUEBA}?text=${encodeURIComponent(textoPlano)}`, "_blank"); };
   const enviar = () => { if (!pedirCiudad()) return; if (texto.trim()) { setProductos([...productos, texto.trim()]); setTexto(""); } setEnviado(true); const lista = texto.trim() ? [...productos, texto.trim()] : productos; const textoPlano = `Hola, soy FarmaCerca 24h. Cliente en ${localidad} (${horario}) pregunta:\n` + (lista.length ? lista.map((p) => `- ${p}`).join("\n") : `- Consulta general`) + `\nContesta con: TENGO / NO TENGO / BAJO PEDIDO`; window.open(`https://wa.me/${TELEFONO_PRUEBA}?text=${encodeURIComponent(textoPlano)}`, "_blank"); };
   const buscarCercanas = () => { if (!pedirCiudad()) return; setGuardia(false); setDiurno(true); window.open(`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent("farmacias en " + localidad)}`, "_blank"); };
   const buscarGuardia = () => { if (!pedirCiudad()) return; setGuardia(true); setDiurno(false); window.open(`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent("farmacia de guardia en " + localidad)}`, "_blank"); };
-  const rosa = errorCiudad && !localidad;
+  const rojo = errorCiudad && !localidad;
   return (
     <main style={{ maxWidth: 480, width: "100%", margin: "0 auto", padding: 12, fontFamily: "sans-serif", background: "#fff", boxSizing: "border-box", overflowX: "hidden" }}>
       <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 8, width: "100%", boxSizing: "border-box" }}>
@@ -97,7 +95,7 @@ export default function Page() {
         <>
           <p style={{ fontWeight: "bold", margin: "8px 0 4px", fontSize: 18 }}>1º Elige tu ciudad o pedanía:</p>
           <div style={{ position: "relative", width: "100%" }}>
-            <input value={busquedaCiudad} onChange={(e) => { setBusquedaCiudad(e.target.value); setMostrarSugerencias(true); setErrorCiudad(false); if (e.target.value === "") setLocalidad(""); }} onFocus={() => setMostrarSugerencias(true)} placeholder="🔍 Escribe tu ciudad... ej: Marbella" style={{ width: "100%", padding: 14, borderRadius: 12, border: rosa ? "3px solid #ec4899" : "2px solid #16a34a", fontSize: 16, background: rosa ? "#fce7f3" : "#f0fdf4", boxSizing: "border-box" }} />
+            <input value={busquedaCiudad} onChange={(e) => { setBusquedaCiudad(e.target.value); setMostrarSugerencias(true); setErrorCiudad(false); if (e.target.value === "") setLocalidad(""); }} onFocus={() => setMostrarSugerencias(true)} placeholder="🔍 Escribe tu ciudad... ej: Marbella" style={{ width: "100%", padding: 14, borderRadius: 12, border: rojo ? "3px solid #dc2626" : "2px solid #16a34a", fontSize: 16, background: rojo ? "#fee2e2" : "#f0fdf4", boxSizing: "border-box" }} />
             {localidad && <button onClick={() => { setLocalidad(""); setBusquedaCiudad(""); setSeleccionadas([]); setEnviadasA([]); }} style={{ position: "absolute", right: 10, top: 10, background: "#eee", border: "none", borderRadius: "50%", width: 28, height: 28, fontSize: 14 }}>❌</button>}
             {mostrarSugerencias && (
               <div style={{ position: "absolute", top: "100%", left: 0, right: 0, background: "#fff", border: "2px solid #16a34a", borderTop: "none", borderRadius: "0 0 12px 12px", maxHeight: 220, overflowY: "auto", zIndex: 20, boxShadow: "0 4px 12px rgba(0,0,0,0.15)" }}>
@@ -108,7 +106,7 @@ export default function Page() {
               </div>
             )}
           </div>
-          {rosa && (<p style={{ background: "#fce7f3", border: "2px solid #ec4899", color: "#9d174d", padding: 10, borderRadius: 10, fontSize: 14, fontWeight: "bold", margin: "8px 0 0", textAlign: "center" }}>💗 ¡Elige primero tu ciudad o pedanía aquí arriba! 💗<br /><span style={{ fontWeight: "normal", fontSize: 13 }}>Sin ciudad no puedes escribir ni ver farmacias.</span></p>)}
+          {rojo && (<p style={{ background: "#fee2e2", border: "2px solid #dc2626", color: "#991b1b", padding: 10, borderRadius: 10, fontSize: 14, fontWeight: "bold", margin: "8px 0 0", textAlign: "center" }}>🔴 ¡Elige primero tu ciudad o pedanía aquí arriba! 🔴<br /><span style={{ fontWeight: "normal", fontSize: 13 }}>Sin ciudad no puedes escribir ni ver farmacias.</span></p>)}
           {localidad && <p style={{ fontSize: 13, color: "#16a34a", fontWeight: "bold", margin: "6px 0 0" }}>✅ Has elegido: {localidad} ({listaActiva.filter((f) => f[1] === localidad).length} farmacias)</p>}
           <p style={{ fontWeight: "bold", margin: "12px 0 6px", fontSize: 17 }}>Para el Chat, marcar si estamos en horario:</p>
           {guardia && !festivo && <p style={{ background: "#fef3c7", border: "1px solid #f59e0b", padding: 8, borderRadius: 8, fontSize: 13, margin: "6px 0" }}>🌙 Es de noche: las farmacias diurnas ya han cerrado. Se marcará solo <b>De guardia</b> para que solo escribas a las de guardia.</p>}
@@ -119,36 +117,30 @@ export default function Page() {
             <label style={{ display: "flex", alignItems: "center", gap: 3, whiteSpace: "nowrap", flexShrink: 0 }}><input type="checkbox" checked={festivo} onChange={() => setFestivo(!festivo)} style={{ width: 18, height: 18, margin: 0 }} /> 📅 Festivo</label>
           </div>
           <h3 style={{ color: localidad ? "#16a34a" : "#999", fontSize: 22, margin: "14px 0 8px" }}>💬 Chat de consulta {!localidad && "🔒"}</h3>
-          <div onClick={() => { if (!localidad) pedirCiudad(); }} style={{ display: "flex", border: `2px solid ${rosa ? "#ec4899" : localidad ? "#16a34a" : "#ccc"}`, borderRadius: 12, overflow: "hidden", background: rosa ? "#fce7f3" : localidad ? "#f0fdf4" : "#f5f5f5", width: "100%", boxSizing: "border-box" }}>
+          <div onClick={() => { if (!localidad) pedirCiudad(); }} style={{ display: "flex", border: `2px solid ${rojo ? "#dc2626" : localidad ? "#16a34a" : "#ccc"}`, borderRadius: 12, overflow: "hidden", background: rojo ? "#fee2e2" : localidad ? "#f0fdf4" : "#f5f5f5", width: "100%", boxSizing: "border-box" }}>
             <input value={texto} onChange={(e) => setTexto(e.target.value)} onKeyDown={(e) => { if (e.key === "Enter") { if (!pedirCiudad()) return; enviar(); } }} onFocus={() => { if (!localidad) pedirCiudad(); }} placeholder={localidad ? "🔍 ¿Qué necesitas? Escribe el producto..." : "🔒 Primero elige tu ciudad arriba..."} style={{ flex: 1, minWidth: 0, padding: 14, border: "none", background: "transparent", fontSize: 16 }} />
-            <button onClick={() => { if (!pedirCiudad()) return; enviar(); }} style={{ background: localidad ? "#16a34a" : "#ec4899", color: "#fff", border: "none", padding: "0 22px", fontWeight: "bold", fontSize: 18, whiteSpace: "nowrap" }}>Enviar</button>
+            <button onClick={() => { if (!pedirCiudad()) return; enviar(); }} style={{ background: localidad ? "#16a34a" : "#dc2626", color: "#fff", border: "none", padding: "0 22px", fontWeight: "bold", fontSize: 18, whiteSpace: "nowrap" }}>Enviar</button>
           </div>
-          {rosa && <p style={{ color: "#be185d", fontSize: 13, fontWeight: "bold", margin: "6px 0 0" }}>💗 No puedes escribir todavía. Elige tu ciudad arriba.</p>}
           {productos.map((p, i) => (<div key={i} style={{ display: "flex", justifyContent: "space-between", background: "#f0fdf4", padding: 10, borderRadius: 10, marginTop: 8, border: "1px solid #bbf7d0" }}><span>💊 {p}</span><button onClick={() => setProductos(productos.filter((_, x) => x !== i))} style={{ border: "none", background: "none", fontSize: 16 }}>❌</button></div>))}
           <p style={{ fontWeight: "bold", fontSize: 14, margin: "10px 0 2px" }}><span style={{ color: "#16a34a" }}>✓</span> en stock &nbsp; <span style={{ color: "#dc2626" }}>✗</span> Sin stock &nbsp; 👁 otro &nbsp; ✏️ Bajo pedido</p>
           {!localidad ? (
-            <div style={{ border: "2px dashed #ec4899", borderRadius: 10, padding: 14, marginTop: 8, textAlign: "center", background: rosa ? "#fce7f3" : "#fffbeb" }}><p style={{ fontSize: 16, fontWeight: "bold", margin: 0, color: "#9d174d" }}>💗 Elige tu ciudad o pedanía</p><p style={{ fontSize: 13, margin: "6px 0 0" }}>Aquí saldrán las farmacias cuando elijas tu ciudad en el buscador de arriba.</p></div>
+            <div style={{ border: "2px dashed #dc2626", borderRadius: 10, padding: 14, marginTop: 8, textAlign: "center", background: rojo ? "#fee2e2" : "#fffbeb" }}><p style={{ fontSize: 16, fontWeight: "bold", margin: 0, color: "#991b1b" }}>🔴 Elige tu ciudad o pedanía</p><p style={{ fontSize: 13, margin: "6px 0 0" }}>Aquí saldrán las farmacias cuando elijas tu ciudad en el buscador de arriba.</p></div>
           ) : (
             <>
-              <div style={{ background: "#f0fdf4", border: "2px solid #16a34a", borderRadius: 12, padding: 10, marginTop: 8 }}>
-                <button onClick={() => setMostrarDesplegableFarmacias(!mostrarDesplegableFarmacias)} style={{ width: "100%", background: "transparent", border: "none", textAlign: "left", cursor: "pointer", padding: 0 }}>
-                  <p style={{ fontWeight: "bold", fontSize: 16, margin: "0 0 4px", color: "#000" }}>2º Elige a qué farmacias enviar {mostrarDesplegableFarmacias ? "▲" : "▼"}</p>
-                  <p style={{ fontSize: 13, margin: "0", color: "#333" }}>Todas las farmacias de {localidad} ({filtradas.length}) - Marca con ☑️ las que quieras. Las elegidas se ponen en verde.</p>
+              <p style={{ fontWeight: "bold", fontSize: 16, margin: "12px 0 4px", color: "#000" }}>2º Elige a qué farmacias enviar</p>
+              <p style={{ fontSize: 13, margin: "0 0 8px", color: "#333" }}>Todas las farmacias de {localidad} ({filtradas.length}) - Pulsa el desplegable y marca con ☑️ las que quieras. Las elegidas se ponen en verde.</p>
+              {seleccionadas.length > 0 && <p style={{ fontSize: 13, fontWeight: "bold", color: "#16a34a", margin: "0 0 8px" }}>✅ Has seleccionado {seleccionadas.length} farmacia{seleccionadas.length > 1 ? "s" : ""} {enviadasA.length > 0 ? `• Ya enviado a ${enviadasA.length}` : ""}</p>}
+              {seleccionadas.length > 0 && <button onClick={() => setSeleccionadas([])} style={{ width: "100%", background: "#fff", color: "#333", border: "1.5px solid #ccc", padding: "8px 4px", borderRadius: 8, fontWeight: "bold", fontSize: 12, marginBottom: 8 }}>Quitar selección</button>}
+              <div style={{ position: "relative", width: "100%" }}>
+                <button onClick={() => setMostrarDesplegableFarmacias(!mostrarDesplegableFarmacias)} style={{ width: "100%", padding: 14, borderRadius: 12, border: "2px solid #16a34a", fontSize: 16, background: "#f0fdf4", boxSizing: "border-box", textAlign: "left", display: "flex", justifyContent: "space-between", alignItems: "center", fontWeight: "bold" }}>
+                  <span>{seleccionadas.length === 0 ? `🏪 Selecciona farmacias de ${localidad} (${filtradas.length})` : `🏪 ${seleccionadas.length} seleccionada${seleccionadas.length > 1 ? "s" : ""} - Pulsa para cambiar`}</span>
+                  <span>{mostrarDesplegableFarmacias ? "▲" : "▼"}</span>
                 </button>
-                {seleccionadas.length > 0 && <p style={{ fontSize: 13, fontWeight: "bold", color: "#16a34a", margin: "8px 0 0" }}>✅ Has seleccionado {seleccionadas.length} farmacia{seleccionadas.length > 1 ? "s" : ""} {enviadasA.length > 0 ? `• Ya enviado a ${enviadasA.length}` : ""}</p>}
-                {seleccionadas.length === 0 && <p style={{ fontSize: 12, color: "#666", margin: "8px 0 0" }}>Todavía no has marcado ninguna. Abre el desplegable y marca la casilla.</p>}
-                <div style={{ display: "flex", gap: 6, marginTop: 8 }}>
-                  <button onClick={() => setSeleccionadas(filtradas.map((f) => f[4]))} style={{ flex: 1, background: "#16a34a", color: "#fff", border: "none", padding: "8px 4px", borderRadius: 8, fontWeight: "bold", fontSize: 12 }}>☑️ Seleccionar todas</button>
-                  <button onClick={() => setSeleccionadas([])} style={{ flex: 1, background: "#fff", color: "#333", border: "1.5px solid #ccc", padding: "8px 4px", borderRadius: 8, fontWeight: "bold", fontSize: 12 }}>Quitar selección</button>
-                </div>
                 {mostrarDesplegableFarmacias && (
-                  <div style={{ marginTop: 10 }}>
-                    <input value={busquedaFarmacia} onChange={(e) => setBusquedaFarmacia(e.target.value)} placeholder="🔍 Buscar farmacia por nombre o calle..." style={{ width: "100%", padding: 10, borderRadius: 10, border: "1.5px solid #16a34a", fontSize: 14, boxSizing: "border-box", background: "#fff" }} />
-                    <div style={{ maxHeight: 300, overflowY: "auto", marginTop: 8, border: "1.5px solid #16a34a", borderRadius: 10, background: "#fff", overflow: "hidden" }}>
-                      {farmaciasFiltradasDesplegable.length === 0 && <div style={{ padding: 12, fontSize: 13, color: "#666" }}>No hay farmacias con ese nombre en {localidad}.</div>}
-                      {farmaciasFiltradasDesplegable.map((f, idx) => { const esta = seleccionadas.includes(f[4]); return (<label key={f[4] + idx} style={{ display: "flex", alignItems: "flex-start", gap: 10, padding: "12px 10px", borderBottom: "1px solid #eee", cursor: "pointer", background: esta ? "#bbf7d0" : "#fff" }}><input type="checkbox" checked={esta} onChange={() => toggleSeleccion(f[4])} style={{ width: 24, height: 24, minWidth: 24, marginTop: 2, accentColor: "#16a34a" }} /><span style={{ flex: 1 }}><b style={{ fontSize: 14, display: "block", lineHeight: 1.2 }}>{f[0]}</b><span style={{ fontSize: 12, color: "#555", display: "block", marginTop: 2 }}>📍 {f[2]}</span>{f[3] && <span style={{ fontSize: 12, color: "#0369a1", fontWeight: "bold" }}>🕒 {f[3]}</span>}{esta && <span style={{ fontSize: 12, color: "#166534", fontWeight: "bold", display: "block" }}>✅ Elegida</span>}</span><span style={{ fontSize: 20 }}>{esta ? "☑️" : "⬜"}</span></label>); })}
-                    </div>
-                    <button onClick={() => setMostrarDesplegableFarmacias(false)} style={{ width: "100%", background: "#16a34a", color: "#fff", border: "none", padding: "10px", borderRadius: 10, fontWeight: "bold", marginTop: 8, fontSize: 14 }}>✅ Listo, cerrar desplegable</button>
+                  <div style={{ position: "absolute", top: "100%", left: 0, right: 0, background: "#fff", border: "2px solid #16a34a", borderTop: "none", borderRadius: "0 0 12px 12px", maxHeight: 300, overflowY: "auto", zIndex: 20, boxShadow: "0 4px 12px rgba(0,0,0,0.15)" }}>
+                    {filtradas.length === 0 && <div style={{ padding: 12, fontSize: 13, color: "#666" }}>No hay farmacias en {localidad}.</div>}
+                    {filtradas.map((f, idx) => { const esta = seleccionadas.includes(f[4]); return (<label key={f[4] + idx} style={{ display: "flex", alignItems: "flex-start", gap: 10, padding: "12px 10px", borderBottom: "1px solid #eee", cursor: "pointer", background: esta ? "#bbf7d0" : "#fff" }}><input type="checkbox" checked={esta} onChange={() => toggleSeleccion(f[4])} style={{ width: 24, height: 24, minWidth: 24, marginTop: 2, accentColor: "#16a34a" }} /><span style={{ flex: 1 }}><b style={{ fontSize: 14, display: "block", lineHeight: 1.2 }}>{f[0]}</b><span style={{ fontSize: 12, color: "#555", display: "block", marginTop: 2 }}>📍 {f[2]}</span>{f[3] && <span style={{ fontSize: 12, color: "#0369a1", fontWeight: "bold" }}>🕒 {f[3]}</span>}{esta && <span style={{ fontSize: 12, color: "#166534", fontWeight: "bold", display: "block" }}>✅ Elegida</span>}</span><span style={{ fontSize: 20 }}>{esta ? "☑️" : "⬜"}</span></label>); })}
+                    <button onClick={() => setMostrarDesplegableFarmacias(false)} style={{ width: "100%", background: "#16a34a", color: "#fff", border: "none", padding: "10px", fontWeight: "bold", fontSize: 14 }}>✅ Listo, cerrar desplegable</button>
                   </div>
                 )}
               </div>
@@ -158,8 +150,8 @@ export default function Page() {
             </>
           )}
           <div style={{ display: "flex", gap: 8, marginTop: 2 }}>
-            <button onClick={() => { if (!pedirCiudad()) return; buscarGuardia(); }} style={{ flex: 1, padding: 8, borderRadius: 10, fontWeight: "bold", background: rosa ? "#fce7f3" : "#dbeafe", border: `1.5px solid ${rosa ? "#ec4899" : "#0090ff"}`, fontSize: 13, color: rosa ? "#9d174d" : "#000" }}>🌙 Farmacias de guardia →<br /><span style={{ fontWeight: "normal", fontSize: 11 }}>{localidad ? "Guardias de hoy en Maps" : "💗 Elige ciudad primero"}</span></button>
-            <button onClick={() => { if (!pedirCiudad()) return; buscarCercanas(); }} style={{ flex: 1, padding: 8, borderRadius: 10, fontWeight: "bold", background: rosa ? "#fce7f3" : "#e6f7ee", border: `1.5px solid ${rosa ? "#ec4899" : "#16a34a"}`, fontSize: 13, color: rosa ? "#9d174d" : "#000" }}>📍 Farmacias cercanas →<br /><span style={{ fontWeight: "normal", fontSize: 11 }}>{localidad ? "Cerca de ti en Maps" : "💗 Elige ciudad primero"}</span></button>
+            <button onClick={() => { if (!pedirCiudad()) return; buscarGuardia(); }} style={{ flex: 1, padding: 8, borderRadius: 10, fontWeight: "bold", background: rojo ? "#fee2e2" : "#dbeafe", border: `1.5px solid ${rojo ? "#dc2626" : "#0090ff"}`, fontSize: 13, color: rojo ? "#991b1b" : "#000" }}>🌙 Farmacias de guardia →<br /><span style={{ fontWeight: "normal", fontSize: 11 }}>{localidad ? "Guardias de hoy en Maps" : "🔴 Elige ciudad primero"}</span></button>
+            <button onClick={() => { if (!pedirCiudad()) return; buscarCercanas(); }} style={{ flex: 1, padding: 8, borderRadius: 10, fontWeight: "bold", background: rojo ? "#fee2e2" : "#e6f7ee", border: `1.5px solid ${rojo ? "#dc2626" : "#16a34a"}`, fontSize: 13, color: rojo ? "#991b1b" : "#000" }}>📍 Farmacias cercanas →<br /><span style={{ fontWeight: "normal", fontSize: 11 }}>{localidad ? "Cerca de ti en Maps" : "🔴 Elige ciudad primero"}</span></button>
           </div>
           <div style={{ background: "#e6f7ee", border: "1.5px solid #16a34a", borderRadius: 10, padding: 8, marginTop: 8 }}>
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 8 }}><div style={{ fontSize: 13 }}><b>Contacto FarmaCerca 24 h</b><br /><span style={{ fontSize: 12 }}>¿Dudas o ayuda? Pulsa para escribirnos.</span></div><button onClick={() => window.open(`https://wa.me/${TELEFONO_PRUEBA}?text=${encodeURIComponent("Hola FarmaCerca 24h, tengo una duda, ¿me ayudáis?")}`, "_blank")} style={{ background: "#fff", color: "#16a34a", border: "1.5px solid #16a34a", padding: "6px 10px", borderRadius: 8, fontWeight: "bold", fontSize: 13, whiteSpace: "nowrap" }}>💬 Chat →</button></div>
