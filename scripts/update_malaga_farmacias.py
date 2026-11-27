@@ -589,6 +589,32 @@ def fetch_existing_coords() -> Dict[str, Tuple[float, float]]:
             coords[row["pharmacy_key"]] = (float(row["lat"]), float(row["lng"]))
     return coords
 
+MALAGA_LAT_MIN, MALAGA_LAT_MAX = 36.2, 37.4
+MALAGA_LNG_MIN, MALAGA_LNG_MAX = -5.7, -3.7
+
+
+def in_malaga_bounds(lat: float, lng: float) -> bool:
+    return (
+        MALAGA_LAT_MIN <= lat <= MALAGA_LAT_MAX
+        and MALAGA_LNG_MIN <= lng <= MALAGA_LNG_MAX
+    )
+
+
+def clean_address_for_geocoding(direccion: str) -> str:
+    s = re.sub(r"\([^)]*\)", " ", direccion or "")
+    s = re.sub(r"\bC/\.?\s*", "Calle ", s, flags=re.IGNORECASE)
+    s = re.sub(r"\bAVDA\.?\s*", "Avenida ", s, flags=re.IGNORECASE)
+    s = re.sub(r"\bAV\.?\s*", "Avenida ", s, flags=re.IGNORECASE)
+    s = re.sub(r"\bPZA\.?\s*", "Plaza ", s, flags=re.IGNORECASE)
+    s = re.sub(r"\bN[º°\.]\s*", " ", s, flags=re.IGNORECASE)
+    s = re.sub(
+        r"\b(LOCAL|LCAL|BAJO|EDIF\.?|EDIFICIO|BLQ\.?|BLOQUE)\b.*$",
+        "",
+        s,
+        flags=re.IGNORECASE,
+    )
+    return " ".join(s.split()).strip(" ,.-")
+
 
 def geocode_cartociudad(
     geo_session: cffi_requests.Session,
@@ -596,30 +622,94 @@ def geocode_cartociudad(
     localidad: str,
     codigo_postal: str,
 ) -> Tuple[Optional[float], Optional[float]]:
-    partes = [direccion.strip()]
-    cp_loc = " ".join(p for p in (codigo_postal.strip(), localidad.strip()) if p)
-    if cp_loc:
-        partes.append(cp_loc)
-    partes.append("Málaga, España")
-    query = ", ".join(partes)
+    dir_clean = clean_address_for_geocoding(direccion)
+    if not dir_clean:
+        return None, None
+
+    query = f"{dir_clean}, {localidad.strip()}" if localidad.strip() else dir_clean
+    params: Dict[str, str] = {"q": query, "limit": "3"}
+    cp = codigo_postal.strip()
+    if re.fullmatch(r"29\d{3}", cp):
+        params["cod_postal_filter"] = cp
 
     try:
         resp = geo_session.get(
-            "https://www.cartociudad.es/geocoder/api/geocoder/find",
-            params={"q": query},
+            "https://www.cartociudad.es/geocoder/api/geocoder/candidates",
+            params=params,
             headers={"User-Agent": "FarmaCerca24h-Updater/1.0"},
             timeout=15,
         )
         if not resp.ok:
             return None, None
-        data = resp.json()
-        lat = data.get("lat")
-        lng = data.get("lng")
-        if lat is None or lng is None:
+        candidates = resp.json()
+        if not isinstance(candidates, list) or not candidates:
             return None, None
-        lat_f, lng_f = float(lat), float(lng)
-        if 36.2 <= lat_f <= 37.4 and -5.7 <= lng_f <= -3.7:
-            return lat_f, lng_f
+
+        for cand in candidates:
+            if not isinstance(cand, dict):
+                continue
+            lat = cand.get("lat")
+            lng = cand.get("lng")
+            if lat is not None and lng is not None:
+                lat_f, lng_f = float(lat), float(lng)
+                if in_malaga_bounds(lat_f, lng_f):
+                    return lat_f, lng_f
+
+            cand_id = cand.get("id")
+            cand_type = cand.get("type")
+            if cand_id and cand_type:
+                find_resp = geo_session.get(
+                    "https://www.cartociudad.es/geocoder/api/geocoder/find",
+                    params={
+                        "id": str(cand_id),
+                        "type": str(cand_type),
+                        "q": str(cand.get("address") or query),
+                    },
+                    headers={"User-Agent": "FarmaCerca24h-Updater/1.0"},
+                    timeout=15,
+                )
+                if find_resp.ok:
+                    fdata = find_resp.json()
+                    flat, flng = fdata.get("lat"), fdata.get("lng")
+                    if flat is not None and flng is not None:
+                        lat_f, lng_f = float(flat), float(flng)
+                        if in_malaga_bounds(lat_f, lng_f):
+                            return lat_f, lng_f
+    except Exception:
+        return None, None
+    return None, None
+
+
+def geocode_photon(
+    geo_session: cffi_requests.Session,
+    direccion: str,
+    localidad: str,
+    codigo_postal: str,
+) -> Tuple[Optional[float], Optional[float]]:
+    dir_clean = clean_address_for_geocoding(direccion)
+    partes = [p for p in (dir_clean, codigo_postal.strip(), localidad.strip(), "Málaga") if p]
+    query = ", ".join(partes)
+
+    try:
+        resp = geo_session.get(
+            "https://photon.komoot.io/api",
+            params={
+                "q": query,
+                "limit": "3",
+                "bbox": f"{MALAGA_LNG_MIN},{MALAGA_LAT_MIN},{MALAGA_LNG_MAX},{MALAGA_LAT_MAX}",
+            },
+            headers={"User-Agent": "FarmaCerca24h-Updater/1.0"},
+            timeout=15,
+        )
+        if not resp.ok:
+            return None, None
+        features = resp.json().get("features", [])
+        for feat in features:
+            coords = feat.get("geometry", {}).get("coordinates")
+            if isinstance(coords, list) and len(coords) >= 2:
+                lng_f, lat_f = float(coords[0]), float(coords[1])
+                if in_malaga_bounds(lat_f, lng_f):
+                    return lat_f, lng_f
     except Exception:
         return None, None
     return None, None
@@ -628,7 +718,9 @@ def geocode_cartociudad(
 def enrich_with_coordinates(rows: List[Dict[str, Any]]) -> None:
     existing = fetch_existing_coords()
     geo_session = cffi_requests.Session()
-    geocoded_now = 0
+    from_cartociudad = 0
+    from_photon = 0
+    missed = 0
 
     for row in rows:
         key = str(row["pharmacy_key"])
@@ -636,22 +728,33 @@ def enrich_with_coordinates(rows: List[Dict[str, Any]]) -> None:
             row["lat"], row["lng"] = existing[key]
             continue
 
-        lat, lng = geocode_cartociudad(
-            geo_session,
-            str(row.get("direccion", "")),
-            str(row.get("localidad", "")),
-            str(row.get("codigo_postal", "")),
-        )
+        direccion = str(row.get("direccion", ""))
+        localidad = str(row.get("localidad", ""))
+        codigo_postal = str(row.get("codigo_postal", ""))
+
+        lat, lng = geocode_cartociudad(geo_session, direccion, localidad, codigo_postal)
+        if lat is not None:
+            from_cartociudad += 1
+        else:
+            time.sleep(0.25)
+            lat, lng = geocode_photon(geo_session, direccion, localidad, codigo_postal)
+            if lat is not None:
+                from_photon += 1
+            else:
+                missed += 1
+
         row["lat"] = lat
         row["lng"] = lng
-        if lat is not None:
-            geocoded_now += 1
-        time.sleep(0.2)
+        time.sleep(0.25)
 
     print(
         f"Coordinates ready: {len(existing)} cached, "
-        f"{geocoded_now} newly geocoded via CartoCiudad."
+        f"{from_cartociudad} via CartoCiudad, "
+        f"{from_photon} via Photon OSM, "
+        f"{missed} unresolved."
     )
+
+
 
 def upsert_to_supabase(rows: List[Dict[str, Any]]) -> None:
     sb_session = cffi_requests.Session()
