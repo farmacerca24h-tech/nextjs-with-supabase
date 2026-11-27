@@ -4,7 +4,7 @@ import re
 import time
 import unicodedata
 from datetime import datetime, timedelta
-from typing import Dict, List, Optional, Tuple
+from typing import Any, Dict, List, Optional, Tuple
 from zoneinfo import ZoneInfo
 
 from bs4 import BeautifulSoup
@@ -557,16 +557,106 @@ def collect_official_malaga_pharmacies(
     return records
 
 
-def upsert_to_supabase(rows: List[Dict[str, str]]) -> None:
-    sb_session = cffi_requests.Session()
+def build_supabase_headers() -> Dict[str, str]:
     headers = {
         "apikey": SUPABASE_SERVICE_ROLE_KEY,
         "Content-Type": "application/json",
-        "Prefer": "resolution=merge-duplicates,return=minimal",
         "User-Agent": "FarmaCerca24h-Updater/1.0",
     }
     if SUPABASE_SERVICE_ROLE_KEY.startswith("eyJ"):
         headers["Authorization"] = f"Bearer {SUPABASE_SERVICE_ROLE_KEY}"
+    return headers
+
+
+def fetch_existing_coords() -> Dict[str, Tuple[float, float]]:
+    sb_session = cffi_requests.Session()
+    headers = build_supabase_headers()
+    headers["Range"] = "0-999"
+    resp = sb_session.get(
+        f"{SUPABASE_URL}/rest/v1/farmacias_malaga",
+        params={
+            "select": "pharmacy_key,lat,lng",
+            "lat": "not.is.null",
+            "lng": "not.is.null",
+        },
+        headers=headers,
+        timeout=30,
+    )
+    resp.raise_for_status()
+    coords: Dict[str, Tuple[float, float]] = {}
+    for row in resp.json():
+        if row.get("lat") is not None and row.get("lng") is not None:
+            coords[row["pharmacy_key"]] = (float(row["lat"]), float(row["lng"]))
+    return coords
+
+
+def geocode_cartociudad(
+    geo_session: cffi_requests.Session,
+    direccion: str,
+    localidad: str,
+    codigo_postal: str,
+) -> Tuple[Optional[float], Optional[float]]:
+    partes = [direccion.strip()]
+    cp_loc = " ".join(p for p in (codigo_postal.strip(), localidad.strip()) if p)
+    if cp_loc:
+        partes.append(cp_loc)
+    partes.append("Málaga, España")
+    query = ", ".join(partes)
+
+    try:
+        resp = geo_session.get(
+            "https://www.cartociudad.es/geocoder/api/geocoder/find",
+            params={"q": query},
+            headers={"User-Agent": "FarmaCerca24h-Updater/1.0"},
+            timeout=15,
+        )
+        if not resp.ok:
+            return None, None
+        data = resp.json()
+        lat = data.get("lat")
+        lng = data.get("lng")
+        if lat is None or lng is None:
+            return None, None
+        lat_f, lng_f = float(lat), float(lng)
+        if 36.2 <= lat_f <= 37.4 and -5.7 <= lng_f <= -3.7:
+            return lat_f, lng_f
+    except Exception:
+        return None, None
+    return None, None
+
+
+def enrich_with_coordinates(rows: List[Dict[str, Any]]) -> None:
+    existing = fetch_existing_coords()
+    geo_session = cffi_requests.Session()
+    geocoded_now = 0
+
+    for row in rows:
+        key = str(row["pharmacy_key"])
+        if key in existing:
+            row["lat"], row["lng"] = existing[key]
+            continue
+
+        lat, lng = geocode_cartociudad(
+            geo_session,
+            str(row.get("direccion", "")),
+            str(row.get("localidad", "")),
+            str(row.get("codigo_postal", "")),
+        )
+        row["lat"] = lat
+        row["lng"] = lng
+        if lat is not None:
+            geocoded_now += 1
+        time.sleep(0.2)
+
+    print(
+        f"Coordinates ready: {len(existing)} cached, "
+        f"{geocoded_now} newly geocoded via CartoCiudad."
+    )
+
+def upsert_to_supabase(rows: List[Dict[str, Any]]) -> None:
+    sb_session = cffi_requests.Session()
+    headers = build_supabase_headers()
+    headers["Prefer"] = "resolution=merge-duplicates,return=minimal"
 
     for idx in range(0, len(rows), 100):
         batch = rows[idx : idx + 100]
@@ -583,7 +673,10 @@ def upsert_to_supabase(rows: List[Dict[str, str]]) -> None:
 
 
 def main() -> None:
-    rows = collect_official_malaga_pharmacies(rotation_days=30, step_days=1)
+    rows: List[Dict[str, Any]] = collect_official_malaga_pharmacies(
+        rotation_days=30, step_days=1
+    )
+    enrich_with_coordinates(rows)
     print(f"Upserting {len(rows)} official Málaga pharmacies to Supabase...")
     upsert_to_supabase(rows)
     print("Weekly Málaga pharmacy directory sync complete.")
